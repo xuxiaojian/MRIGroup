@@ -5,6 +5,7 @@ from collections import OrderedDict
 import logging
 import os
 import shutil
+from util import data_recorder
 
 
 class TFTrainer(object):
@@ -63,7 +64,7 @@ class TFTrainer(object):
 
         return optimizer
 
-    def _initialize(self, training_iters, output_path, restore, prediction_path):
+    def _initialize(self, training_iters, output_path, restore, validation_path):
         global_step = tf.Variable(0)
         logging.getLogger().setLevel(logging.INFO)
 
@@ -72,8 +73,8 @@ class TFTrainer(object):
         init = tf.global_variables_initializer()
 
         # get validation_path
-        self.prediction_path = prediction_path
-        abs_prediction_path = os.path.abspath(self.prediction_path)
+        self.validation_path = validation_path
+        abs_prediction_path = os.path.abspath(self.validation_path)
         output_path = os.path.abspath(output_path)
 
         if not restore:
@@ -94,10 +95,11 @@ class TFTrainer(object):
 
     def train(self, data_provider, output_path, valid_provider, valid_size, training_iters=100, epochs=1000,
               dropout=0.75, display_step=1, save_epoch=50, restore=False, write_graph=False,
-              prediction_path='validation'):
+              validation_path=None):
         """
         Lauches the training process
 
+        :type validation_path: object
         :param save_epoch:
         :param data_provider: callable returning training and verification data
         :param output_path: path where to store checkpoints
@@ -109,11 +111,10 @@ class TFTrainer(object):
         :param display_step: number of steps till outputting stats
         :param restore: Flag if previous model should be restored
         :param write_graph: Flag if the computation graph should be written as protobuf file to the output path
-        :param prediction_path: path where to save predictions on each epoch
         """
 
         # initialize the training process.
-        init = self._initialize(training_iters, output_path, restore, prediction_path)
+        init = self._initialize(training_iters, output_path, restore, validation_path)
 
         # create output path
         directory = os.path.join(output_path, "final/")
@@ -140,8 +141,8 @@ class TFTrainer(object):
 
             # select validation dataset
             valid_x, valid_y = valid_provider(valid_size, fix=True)
-            # util.save_mat(valid_y, "%s/%s.mat" % (self.prediction_path, 'origin_y'))
-            # util.save_mat(valid_x, "%s/%s.mat" % (self.prediction_path, 'origin_x'))
+            data_recorder.save_mat(valid_y, "%s%s.mat" % (self.validation_path, 'origin_y'))
+            data_recorder.save_mat(valid_x, "%s%s.mat" % (self.validation_path, 'origin_x'))
 
             lr = None
             for epoch in range(epochs):
@@ -172,7 +173,11 @@ class TFTrainer(object):
 
                 # output statistics for epoch
                 self.output_epoch_stats(epoch, total_loss, training_iters, lr)
-                self.output_valstats(sess, summary_writer, step, valid_x, valid_y, "epoch_%s" % epoch, store_img=True)
+                if epoch % 20 == 0:
+                    self.output_valstats(sess, summary_writer, step, valid_x, valid_y, "epoch_%s" % epoch,
+                                         store_mat=True)
+                else:
+                    self.output_valstats(sess, summary_writer, step, valid_x, valid_y, "epoch_%s" % epoch)
 
                 if epoch % save_epoch == 0:
                     directory = os.path.join(output_path, "{}_cpkt/".format(step))
@@ -209,7 +214,7 @@ class TFTrainer(object):
                                                                                                               loss,
                                                                                                               avg_psnr))
 
-    def output_valstats(self, sess, summary_writer, step, batch_x, batch_y, name, store_img=True):
+    def output_valstats(self, sess, summary_writer, step, batch_x, batch_y, name, store_img=False, store_mat=False):
         prediction, loss, avg_psnr = sess.run([self.net.recons,
                                                self.net.valid_loss,
                                                self.net.valid_avg_psnr],
@@ -222,6 +227,9 @@ class TFTrainer(object):
         self.record_summary(summary_writer, 'valid_avg_psnr', avg_psnr, step)
 
         logging.info("Validation Statistics, validation loss= {:.4f}, Avg PSNR= {:.4f}".format(loss, avg_psnr))
+
+        if store_mat:
+            data_recorder.save_mat(prediction, "%s%s.mat" % (self.validation_path, name))
 
     def record_summary(self, writer, name, value, step):
         summary = tf.Summary()

@@ -5,6 +5,7 @@ import sys
 # Set GPU
 os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 
+# Set Config File
 config = configparser.ConfigParser()
 config.read('./config.ini')
 
@@ -30,7 +31,7 @@ if len(sys.argv) == 2 and str(sys.argv[1]) == 'unet':
     # Begin Training
     trainer = unet.TFTrainer(net, batch_size=batch_size)
     trainer.train(train_imgs, model_path, valid_imgs, valid_size=6,  # valid_size=6 is predefined, be careful
-                  training_iters=200, epochs=100, display_step=20, save_epoch=50, prediction_path=validation_path)
+                  training_iters=200, epochs=100, display_step=20, save_epoch=50, validation_path=validation_path)
 
 else:
 
