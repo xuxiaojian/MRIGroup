@@ -22,7 +22,10 @@ class TFTrainer(object):
 
     def __init__(self, net, batch_size=1, optimizer="adam", opt_kwargs=None):
         if opt_kwargs is None:
-            opt_kwargs = {}
+            # You can change it. But since I have no interest to do that, I set it in __init__().
+            opt_kwargs = {
+                'learning_rate': 0.01
+            }
 
         self.net = net
         self.batch_size = batch_size
@@ -237,8 +240,19 @@ class TFNetwork(object):
     :param kwargs: args passed to create_net function.
     """
 
-    def __init__(self, img_channels=3, truth_channels=3, cost="mean_squared_error", **kwargs):
+    def __init__(self, img_channels=3, truth_channels=3, cost="mean_squared_error"):
         tf.reset_default_graph()
+
+        # You can change it. But since I have no interest to do that, I set it in __init__().
+        kwargs = {
+            "layers": 5,  # how many resolution levels we want to have
+            "conv_times": 2,  # how many times we want to convolve in each level
+            "features_root": 64, # how many feature_maps we want to have as root
+            # (the following levels will calculate the feature_map by multiply by 2, exp, 64, 128, 256)
+            "filter_size": 3,  # filter size used in convolution
+            "pool_size": 2,  # pooling size used in max-pooling
+            "summaries": True
+        }
 
         # basic variables
         self.summaries = kwargs.get("summaries", True)

@@ -4,6 +4,26 @@ from scipy import misc
 import tensorflow as tf
 
 
+def read_customed_vaild(root_path):
+
+    index_read = [10, 15, 20, 25, 30, 35]
+    mat_file = sio.loadmat(root_path + '9.mat')
+    mat_x = mat_file['nims']
+    mat_y = mat_file['cims']
+
+    x = np.zeros(shape=[index_read.__len__(), 320, 320])  # Features Data
+    y = np.zeros(shape=[index_read.__len__(), 320, 320])  # Labels Data
+
+    for i in range(index_read.__len__()):
+        x[i, :, :] = mat_x[:, :, index_read[i]]
+        y[i, :, :] = mat_y[:, :, index_read[i]]
+
+    x.shape = [index_read.__len__(), 320, 320, 1]
+    y.shape = [index_read.__len__(), 320, 320, 1]
+
+    return SimpleDataProvider(data=x, truths=y)
+
+
 def read_mnist(num_train: "Number of Train Data", num_test: "Number of Test Data") \
         -> "Train Data and Test Data as SimpleDataProvider Object":
 
