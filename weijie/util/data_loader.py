@@ -24,15 +24,14 @@ def read_customed_vaild(root_path):
     return SimpleDataProvider(data=x, truths=y)
 
 
-def read_mnist(num_train: "Number of Train Data", num_test: "Number of Test Data") \
-        -> "Train Data and Test Data as SimpleDataProvider Object":
+def read_mnist(num_train, num_vaild, num_test, shape_test):
 
     # Easy Data For Debugging Network
 
     (img_train, _), (img_test, _) = tf.keras.datasets.mnist.load_data()
     # Only used source image in this problem
 
-    if num_train - 1 > img_train.shape[0] or num_test - 1 > img_test.shape[0]:
+    if num_train - 1 > img_train.shape[0] or num_vaild + num_test - 1 > img_test.shape[0]:
         print("[data_loader: ]: Error - Mnist Dataset Index Excess, Max: %d in Train and %d in Test" %
               (img_train.shape[0], img_test.shape[0]))
         return None
@@ -45,15 +44,24 @@ def read_mnist(num_train: "Number of Train Data", num_test: "Number of Test Data
     x_train.shape = [num_train, 28, 28, 1]
     y_train.shape = [num_train, 28, 28, 1]
 
-    x_test = np.zeros([num_test, 28, 28])
-    y_test = np.zeros([num_test, 28, 28])
-    for i in range(num_test):
-        y_test[i, :, :] = img_test[i, :, :]
-        x_test[i, :, :] = misc.imresize(misc.imresize(img_test[i, :, :], [10, 10]), [28, 28])
-    x_test.shape = [num_test, 28, 28, 1]
-    y_test.shape = [num_test, 28, 28, 1]
+    x_valid = np.zeros([num_vaild, 28, 28])
+    y_valid = np.zeros([num_vaild, 28, 28])
+    for i in range(num_vaild):
+        y_valid[i, :, :] = img_test[i, :, :]
+        x_valid[i, :, :] = misc.imresize(misc.imresize(img_test[i, :, :], [10, 10]), [28, 28])
+    x_valid.shape = [num_vaild, 28, 28, 1]
+    y_valid.shape = [num_vaild, 28, 28, 1]
 
-    return SimpleDataProvider(data=x_train, truths=y_train), SimpleDataProvider(data=x_test, truths=y_test)
+    x_test = np.zeros([num_test, shape_test, shape_test])
+    y_test = np.zeros([num_test, shape_test, shape_test])
+    for i in range(num_test):
+        y_test[i, :, :] = misc.imresize(img_test[num_vaild + i - 1, :, :], [shape_test, shape_test])
+        x_test[i, :, :] = misc.imresize(misc.imresize(img_test[num_vaild + i - 1, :, :], [10, 10]), [shape_test, shape_test])
+    x_test.shape = [num_test, shape_test, shape_test, 1]
+    y_test.shape = [num_test, shape_test, shape_test, 1]
+
+    return SimpleDataProvider(data=x_train, truths=y_train), SimpleDataProvider(data=x_valid, truths=y_valid), \
+           SimpleDataProvider(data=x_test, truths=y_test)
 
 
 def read_matfiles(index_read, root_path):
