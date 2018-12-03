@@ -1,6 +1,25 @@
 import numpy as np
 import scipy.io as sio
 import scipy.misc as smisc
+import matplotlib.pyplot as plt
+
+
+class VisualinPyplot(object):
+
+    def __init__(self, name, output_path, index_fig):
+
+        self.index_fig = index_fig
+        self.data = []
+        self.output_path = output_path
+        self.name = name
+
+    def add(self, newdata):
+
+        self.data.append(newdata)
+        plt.figure(self.index_fig)
+        plt.plot(self.data)
+        plt.title(self.name)
+        plt.savefig(self.output_path + self.name + '.png')
 
 
 def to_rgb(img):
