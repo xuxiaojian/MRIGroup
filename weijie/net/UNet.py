@@ -5,7 +5,7 @@ from collections import OrderedDict
 import logging
 import os
 import shutil
-from util import data_recorder
+from util import DataRecorder
 
 
 class TFTrainer(object):
@@ -25,7 +25,7 @@ class TFTrainer(object):
         if opt_kwargs is None:
             # You can change it. But since I have no interest to do that, I set it in __init__().
             opt_kwargs = {
-                'learning_rate': 0.01
+                'learning_rate': 0.0001
             }
 
         self.net = net
@@ -140,9 +140,10 @@ class TFTrainer(object):
             logging.info("Start optimization")
 
             # select validation dataset
-            valid_x, valid_y = valid_provider(valid_size, fix=True)
-            data_recorder.save_mat(valid_y, "%s%s.mat" % (self.validation_path, 'origin_y'))
-            data_recorder.save_mat(valid_x, "%s%s.mat" % (self.validation_path, 'origin_x'))
+            # valid_x, valid_y = valid_provider(valid_size, fix=True)
+            valid_x, valid_y = valid_provider
+            DataRecorder.save_mat(valid_y, "%s%s.mat" % (self.validation_path, 'origin_y'))
+            DataRecorder.save_mat(valid_x, "%s%s.mat" % (self.validation_path, 'origin_x'))
 
             lr = None
             for epoch in range(epochs):
@@ -229,7 +230,7 @@ class TFTrainer(object):
         logging.info("Validation Statistics, validation loss= {:.4f}, Avg PSNR= {:.4f}".format(loss, avg_psnr))
 
         if store_mat:
-            data_recorder.save_mat(prediction, "%s%s.mat" % (self.validation_path, name))
+            DataRecorder.save_mat(prediction, "%s%s.mat" % (self.validation_path, name))
 
     def record_summary(self, writer, name, value, step):
         summary = tf.Summary()
@@ -325,7 +326,7 @@ class TFNetwork(object):
 
         return loss
 
-    def predict(self, model_path, x_test, keep_prob, phase=False):
+    def predict(self, model_path, x_test, keep_prob, batch_size=6, phase=False):
         """
         Uses the model to create a prediction for the given data
 
@@ -335,6 +336,8 @@ class TFNetwork(object):
         :param x_test: Data to predict on. Shape [n, nx, ny, channels]
         :returns prediction: The unet prediction Shape [n, px, py, labels] (px=nx-self.offset/2)
         """
+        import numpy as np
+        prediction = np.zeros_like(x_test)
 
         init = tf.global_variables_initializer()
         with tf.Session() as sess:
@@ -344,10 +347,18 @@ class TFNetwork(object):
             # Restore model weights from previously saved model
             self.restore(sess, model_path)
 
-            prediction = sess.run(self.recons, feed_dict={self.x: x_test,
-                                                          self.keep_prob: keep_prob,
-                                                          self.phase: phase})  # set phase to False for every prediction
-            # define operation
+            print(prediction.shape[0] / batch_size)
+
+            for i in range(int(prediction.shape[0] / batch_size)):
+                prediction[i*batch_size:(i+1)*batch_size, :, :, :] = \
+                    sess.run(self.recons, feed_dict={self.x: x_test[i*batch_size:(i+1)*batch_size, :, :, :]
+                        , self.keep_prob: keep_prob, self.phase: phase})
+
+                if (i+1) % 10 == 0:
+                    print('UNet Prediction: %d (%d Overrall)' % (i+1, int(prediction.shape[0] / batch_size)))
+
+        print(prediction.shape)
+
         return prediction
 
     def save(self, sess, model_path):
