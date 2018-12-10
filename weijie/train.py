@@ -1,38 +1,61 @@
 import configparser
 import os
 import sys
-
-# Set GPU
-os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+import numpy as np
 
 # Set Config File
 config = configparser.ConfigParser()
 config.read('./config.ini')
 
+# Set Global Variables
+os.environ['CUDA_VISIBLE_DEVICES'] = config['GLOBAL']['index_gpu']
 dataset_path = config['GLOBAL']['dataset_path']
 
 if len(sys.argv) == 2 and str(sys.argv[1]) == 'unet':
 
-    import unet
-    from util.data_loader import read_matfiles, read_customed_vaild
+    from util.dataLoader import ReadValidDataset, ReadRawDataset
+    from net import unet
 
     # Build Network
-    net = unet.TFNetwork(img_channels=1, truth_channels=1, cost="mean_squared_error")
+    net = unet.KesUNet(config)
 
-    # Read Data
-    train_imgs = read_matfiles(index_read=[1], root_path=dataset_path)
-    valid_imgs = read_customed_vaild(root_path=dataset_path)
+    # Read Train and Valid Data
+    mat_index_train = np.fromstring(string=config['PAR_UNET']['mat_index_train'], dtype=np.int, sep=',').tolist()
+    data_index_valid = np.fromstring(string=config['PAR_UNET']['data_index_valid'], dtype=np.int, sep=',').tolist()
 
-    # SetUp Parameters
-    model_path = config['PATH_UNET']['model_path']
-    validation_path = config['PATH_UNET']['validation_path']
+    train_imgs = ReadRawDataset(mat_index_train, dataset_path)
+    valid_imgs = ReadValidDataset(data_index_valid, dataset_path)
+
+    # Begin Train
+    net.train(train_imgs, valid_imgs)
+
+if len(sys.argv) == 2 and str(sys.argv[1]) == 'scadec_unet':
+
+    from util.dataLoader import ReadValidDataset, ReadRawDataset
+    from net.scadec import unet, imgs_util
+
+    # Build Network
+    net = unet.TFNetwork()
+
+    # Read Train and Valid Data
+    mat_index_train = np.fromstring(string=config['PAR_UNET']['mat_index_train'], dtype=np.int, sep=',').tolist()
+    data_index_valid = np.fromstring(string=config['PAR_UNET']['data_index_valid'], dtype=np.int, sep=',').tolist()
+
+    train_imgs = ReadRawDataset(mat_index_train, dataset_path)
+    valid_imgs = ReadValidDataset(data_index_valid, dataset_path)
+
+    train_imgs = imgs_util.SimpleDataProvider(train_imgs[0], train_imgs[1])
+    valid_imgs = imgs_util.SimpleDataProvider(valid_imgs[0], valid_imgs[1])
+
+    # Set Parameter
+    model_path = config['PAR_UNET']['model_path']
+    validation_path = config['PAR_UNET']['validation_path']
+
     batch_size = int(config['PAR_UNET']['batch_size'])
+    epochs = int(config['PAR_UNET']['epochs'])
+    epoch_save_model = int(config['PAR_UNET']['epoch_save_model'])
 
-    # Begin Training
+    # Train
     trainer = unet.TFTrainer(net, batch_size=batch_size)
-    trainer.train(train_imgs, model_path, valid_imgs, valid_size=6,  # valid_size=6 is predefined, be careful
-                  training_iters=200, epochs=100, display_step=20, save_epoch=50, validation_path=validation_path)
-
-else:
-
-    print('[train.py]: Error - Wrong Argv.')
+    trainer.train(train_imgs, model_path, valid_imgs, 3, training_iters=200, epochs=epochs, save_epoch=epoch_save_model,
+                  validation_path=validation_path)

@@ -6,7 +6,8 @@ import tensorflow as tf
 import scipy.io as sio
 from scipy import misc
 import numpy as np
-from util.data_recorder import VisualinPyplot
+from util.dataRecorder import VisualinPyplot
+import os
 
 
 class KesNetwork(object):
@@ -34,7 +35,7 @@ class KesNetwork(object):
 
         for i in range(num_rblocks):
             input_rblock = net
-            net = Conv2D(filters=num_filters, kernel_size=3, padding='same', name='conv2d1_nbl%d' % i, activation='relu')(net)
+            net = Conv2D(filters=num_filters, kernel_size=3, padding='same', name='conv2d1_nbl%d' % i)(net)
             net = BatchNormalization(name='bn1_nbl%d' % i)(net)
 
             net = Activation('relu', name='relu_nbl%d' % i)(net)
@@ -86,13 +87,16 @@ class KesNetwork(object):
         test_net = self.test_net
         shape_test = self.shape_test[0]
 
+        num_predict = test_provider[0].shape[0]
+        for i in range(num_predict):
+            os.makedirs(test_path + '%s/' % i)
+
         class SaveValidation(keras.callbacks.Callback):
             def on_epoch_end(self, epoch, logs=None):
                 # Test Network with different size Input
                 test_net.set_weights(self.model.get_weights())
 
                 # Obtain Test Data
-                num_predict = test_provider[0].shape[0]
                 y_predcit = test_net.predict(test_provider[0])
                 loss_test, psnr_test = test_net.evaluate(x=test_provider[0], y=test_provider[1])
 
@@ -100,22 +104,24 @@ class KesNetwork(object):
 
                     sio.savemat(test_path + '%d.mat' % (epoch+1), {
                         'y_pre': y_predcit,
-                        'x': test_provider[0],
+                        'x_sr': test_provider[0],
                         'y': test_provider[1],
+                        'x': test_provider[2],
                     })
+
                 for i in range(num_predict):
-                    os.makedirs(test_path + '%s/' % i)
-                for i in range(num_predict):
-                    test = np.zeros(shape=[shape_test, shape_test * 3, 1])
-                    test[:, :shape_test, :] = test_provider[0][i, :, :, :]
-                    test[:, shape_test:shape_test * 2, :] = test_provider[1][i, :, :, :]
+                    test = np.zeros(shape=[shape_test, shape_test * 4, 1])
+
+                    test[:, :shape_test, :] = test_provider[2][i, :, :, :]
+                    test[:, shape_test:shape_test * 2, :] = test_provider[0][i, :, :, :]
                     test[:, shape_test * 2:shape_test * 3, :] = y_predcit[i, :, :, :]
-                    test.shape = [shape_test, shape_test * 3]
+                    test[:, shape_test * 3:shape_test * 4, :] = test_provider[1][i, :, :, :]
+                    test.shape = [shape_test, shape_test * 4]
+
                     misc.imsave(test_path + '%d/%d.png' % (i,epoch+1), test)
 
                 # Write All epoch data into png file
                 visual(logs['loss'], logs['val_loss'], loss_test, logs['psnr'], logs['val_psnr'], psnr_test)
-                exit(0)
 
         self.net.fit(x=data_provider[0], y=data_provider[1], validation_data=(valid_provider[0], valid_provider[1]),
                      batch_size=batch_size, epochs=epochs,
@@ -130,18 +136,20 @@ class KesNetwork(object):
 
 
 if __name__ == '__main__':
-    from util import data_loader
-    import os
 
-    os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+    print('edsr.py')
 
-    network = KesNetwork(shape_input=[28, 28, 1], shape_test=[56, 56, 1], num_rblocks=2, num_filters=3)
-    train_imgs, valid_imgs, test_imgs = data_loader.read_mnist(num_train=10000, num_vaild=50, num_test=5, shape_test=56)
-    x_train, y_train = train_imgs(10000, fix=True)
-    x_valid, y_valid = valid_imgs(50, fix=True)
-    x_test, y_test = test_imgs(5, fix=True)
-
-    network.train(data_provider=[x_train, y_train], valid_provider=[x_valid, y_valid], test_provider=[x_test, y_test],
-                  test_path='/home/xiaojianxu/gan/MRIGroup/weijie/result/edsr_mnist/test/',
-                  output_path='/home/xiaojianxu/gan/MRIGroup/weijie/result/edsr_mnist/model/',
-                  batch_size=32, epochs=100, epoch_save_model=20, epoch_save_testmat=5)
+    # from util import data_loader
+    #
+    # os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+    #
+    # network = KesNetwork(shape_input=[28, 28, 1], shape_test=[56, 56, 1], num_rblocks=2, num_filters=3)
+    # train_imgs, valid_imgs, test_imgs = data_loader.read_mnist(num_train=10000, num_vaild=50, num_test=5, shape_test=56)
+    # x_train, y_train = train_imgs(10000, fix=True)
+    # x_valid, y_valid = valid_imgs(50, fix=True)
+    # x_test, y_test = test_imgs(5, fix=True)
+    #
+    # network.train(data_provider=[x_train, y_train], valid_provider=[x_valid, y_valid], test_provider=[x_test, y_test],
+    #               test_path='/home/xiaojianxu/gan/MRIGroup/weijie/result/edsr_mnist/test/',
+    #               output_path='/home/xiaojianxu/gan/MRIGroup/weijie/result/edsr_mnist/model/',
+    #               batch_size=32, epochs=100, epoch_save_model=20, epoch_save_testmat=5)
