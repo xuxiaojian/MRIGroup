@@ -5,6 +5,7 @@ from collections import OrderedDict
 import logging
 import os
 import shutil
+import numpy as np
 
 
 class TFTrainer(object):
@@ -319,7 +320,7 @@ class TFNetwork(object):
 
         return loss
 
-    def predict(self, model_path, x_test, keep_prob=1, phase=False):
+    def predict(self, model_path, test_path, test_imgs, keep_prob=1, phase=False):
         """
         Uses the model to create a prediction for the given data
 
@@ -329,6 +330,12 @@ class TFNetwork(object):
         :param x_test: Data to predict on. Shape [n, nx, ny, channels]
         :returns prediction: The unet prediction Shape [n, px, py, labels] (px=nx-self.offset/2)
         """
+        x_test, y_test = test_imgs
+
+        # Make Sure the path is empty
+        if os.path.exists(test_path):
+            shutil.rmtree(test_path, ignore_errors=True)
+        os.makedirs(test_path)
 
         init = tf.global_variables_initializer()
         with tf.Session() as sess:
@@ -338,10 +345,20 @@ class TFNetwork(object):
             # Restore model weights from previously saved model
             self.restore(sess, model_path)
 
-            prediction = sess.run(self.recons, feed_dict={self.x: x_test,
-                                                          self.keep_prob: keep_prob,
-                                                          self.phase: phase})  # set phase to False for every prediction
+            prediction = np.zeros_like(x_test, dtype=np.float32)
+
+            for i in range(x_test.shape[0]):
+                prediction[i, :, :, :] = sess.run(self.recons, feed_dict={self.x: x_test[i, :, :, :].reshape(
+                    [1, x_test.shape[1], x_test.shape[2], x_test.shape[3]]), self.keep_prob: keep_prob, self.phase: phase})
+                # set phase to False for every prediction
+                print('Predicting Index:', i, ' Overall ', x_test.shape[0])
+
             # define operation
+
+        np.save(test_path + 'x.npy', x_test)
+        np.save(test_path + 'pre.npy', prediction)
+        np.save(test_path + 'y.npy', y_test)
+
         return prediction
 
     def save(self, sess, model_path):

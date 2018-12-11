@@ -1,14 +1,13 @@
 import tensorflow.keras as keras
-from tensorflow.keras.layers import Input, Conv2D, Add, PReLU, BatchNormalization, Activation
+from tensorflow.keras.layers import Input, Conv2D
 from tensorflow.keras.optimizers import Adam
-import shutil
+from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard
+import os, shutil
 import tensorflow as tf
 import scipy.io as sio
-from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard
-import os
 
 
-class KesNetwork(object):
+class KesNetwok(object):
 
     def __init__(self, config, shape_train, shape_valid):
 
@@ -18,8 +17,7 @@ class KesNetwork(object):
             return tf.image.psnr(y_pred, y_true, max_val=1)
 
         self.net_train = self.build_network(shape_train)
-        self.net_train.compile(optimizer=Adam(lr=self.learning_rate), loss=keras.losses.mean_squared_error,
-                               metrics=[psnr])
+        self.net_train.compile(optimizer=Adam(lr=self.learning_rate), loss=keras.losses.mean_squared_error, metrics=[psnr])
         self.net_train.summary()
 
         self.net_valid = self.build_network(shape_valid)
@@ -60,44 +58,18 @@ class KesNetwork(object):
                                       TensorBoard(log_dir=self.model_path)
                                       ])
 
-    def build_network(self, shape_input, num_rblocks=16, num_filters=64):
-
-        input_data = Input(shape=shape_input)
-        net = Conv2D(filters=num_filters, kernel_size=9, padding='same', name='conv2d_input')(input_data)
-        # kernel_size = 9 is learnt from SRResNet
-        input_net = net
-
-        for i in range(num_rblocks):
-            input_rblock = net
-            net = Conv2D(filters=num_filters, kernel_size=3, padding='same', name='conv2d1_nbl%d' % i)(net)
-            net = BatchNormalization(name='bn1_nbl%d' % i)(net)
-
-            net = Activation('relu', name='relu_nbl%d' % i)(net)
-
-            net = Conv2D(filters=num_filters, kernel_size=3, padding='same', name='conv2d2_nbl%d' % i)(net)
-            net = BatchNormalization(name='bn2_nbl%d' % i)(net)
-
-            net = Add(name='add_nbl%d' % i)([net, input_rblock])
-
-        net = Conv2D(filters=num_filters, kernel_size=3, padding='same', name='conv2d_output1')(net)
-        net = Add(name='add_output1')([net, input_net])
-        net = Conv2D(filters=num_filters, kernel_size=3, padding='same', name='conv2d_output2')(net)
-        net = Conv2D(filters=1, kernel_size=9, padding='same', name='final_output')(net)
-
-        return keras.Model(inputs=input_data, outputs=net)
-
     def set_parameter(self, config):
         # Saving Parameter
-        self.model_path = config['PAR_EDSR']['model_path']
-        self.validation_path = config['PAR_EDSR']['validation_path']
-        self.config_path = config['PAR_EDSR']['config_path']
+        self.model_path = config['SRCNN_UNET']['model_path']
+        self.validation_path = config['SRCNN_UNET']['validation_path']
+        self.config_path = config['SRCNN_UNET']['config_path']
 
         # Training Parament
-        self.batch_size = int(config['PAR_EDSR']['batch_size'])
-        self.epochs = int(config['PAR_EDSR']['epochs'])
-        self.epoch_save_model = int(config['PAR_EDSR']['epoch_save_model'])
-        self.epoch_save_valid = int(config['PAR_EDSR']['epoch_save_valid'])
-        self.learning_rate = float(config['PAR_EDSR']['learning_rate'])
+        self.batch_size = int(config['SRCNN_UNET']['batch_size'])
+        self.epochs = int(config['SRCNN_UNET']['epochs'])
+        self.epoch_save_model = int(config['SRCNN_UNET']['epoch_save_model'])
+        self.epoch_save_valid = int(config['SRCNN_UNET']['epoch_save_valid'])
+        self.learning_rate = float(config['SRCNN_UNET']['learning_rate'])
 
         # Make Sure the path is empty
         if os.path.exists(self.validation_path):
@@ -110,3 +82,11 @@ class KesNetwork(object):
 
         shutil.copy('./config.ini', self.config_path)
 
+    def build_network(self, shape_input):
+
+        input_net = Input(shape=shape_input)
+        net = Conv2D(filters=64, kernel_size=9, activation='relu', padding='same')(input_net)
+        net = Conv2D(filters=32, kernel_size=1, activation='relu', padding='same')(net)
+        net = Conv2D(filters=1, kernel_size=5, activation='relu', padding='same' )(net)
+
+        return keras.Model(inputs=input_net, outputs=net)

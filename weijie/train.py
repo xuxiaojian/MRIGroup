@@ -59,3 +59,65 @@ if len(sys.argv) == 2 and str(sys.argv[1]) == 'scadec_unet':
     trainer = unet.TFTrainer(net, batch_size=batch_size)
     trainer.train(train_imgs, model_path, valid_imgs, 3, training_iters=200, epochs=epochs, save_epoch=epoch_save_model,
                   validation_path=validation_path)
+
+if len(sys.argv) == 2 and str(sys.argv[1]) == 'srcnn':
+
+    from net import srcnn
+    from util.dataLoader import LiverReadSRTrainDataset, LiverReadValidDataset
+
+    patch_size = int(config['SRCNN_UNET']['patch_size'])
+    patch_step = int(config['SRCNN_UNET']['patch_step'])
+
+    train_imgs = LiverReadSRTrainDataset(
+        dataset_path, cropped=True, windows_size=(patch_size, patch_size), step=patch_step)
+    valid_imgs = LiverReadValidDataset(dataset_path)
+
+    net = srcnn.KesNetwok(config, shape_train=[patch_size, patch_size, 1], shape_valid=[320, 320, 1])
+    net.train([train_imgs[1], train_imgs[2]], valid_imgs)
+
+if len(sys.argv) == 2 and str(sys.argv[1]) == 'edsr':
+
+    from net import edsr
+    from util.dataLoader import LiverReadSRTrainDataset, LiverReadValidDataset
+
+    patch_size = int(config['PAR_EDSR']['patch_size'])
+    patch_step = int(config['PAR_EDSR']['patch_step'])
+
+    train_imgs = LiverReadSRTrainDataset(
+        dataset_path, cropped=True, windows_size=(patch_size, patch_size), step=patch_step)
+    valid_imgs = LiverReadValidDataset(dataset_path)
+
+    net = edsr.KesNetwork(config, shape_train=[patch_size, patch_size, 1], shape_valid=[320, 320, 1])
+    net.train([train_imgs[1], train_imgs[2]], valid_imgs)
+
+if len(sys.argv) == 2 and str(sys.argv[1]) == 'srcnn_mix':
+
+    from net import srcnn
+    from util.dataLoader import LiverReadSRTrainDataset, LiverReadValidDataset
+
+    patch_size = int(config['SRCNN_UNET']['patch_size'])
+    patch_step = int(config['SRCNN_UNET']['patch_step'])
+
+    train_imgs = LiverReadSRTrainDataset(
+        dataset_path, cropped=True, windows_size=(patch_size, patch_size), step=patch_step)
+    valid_imgs = LiverReadValidDataset(dataset_path)
+
+    net = srcnn.KesNetwok(config, shape_train=[patch_size, patch_size, 2], shape_valid=[320, 320, 2])
+    net.train([np.concatenate([train_imgs[0], train_imgs[1]], axis=-1), train_imgs[2]],
+              [np.concatenate([valid_imgs[0], valid_imgs[1]], axis=-1), valid_imgs[2]])
+
+if len(sys.argv) == 2 and str(sys.argv[1]) == 'edsr_mix':
+
+    from net import edsr
+    from util.dataLoader import LiverReadSRTrainDataset, LiverReadValidDataset
+
+    patch_size = int(config['PAR_EDSR']['patch_size'])
+    patch_step = int(config['PAR_EDSR']['patch_step'])
+
+    train_imgs = LiverReadSRTrainDataset(
+        dataset_path, cropped=True, windows_size=(patch_size, patch_size), step=patch_step)
+    valid_imgs = LiverReadValidDataset(dataset_path)
+
+    net = edsr.KesNetwork(config, shape_train=[patch_size, patch_size, 2], shape_valid=[320, 320, 2])
+    net.train([np.concatenate([train_imgs[0], train_imgs[1]], axis=-1), train_imgs[2]],
+              [np.concatenate([valid_imgs[0], valid_imgs[1]], axis=-1), valid_imgs[2]])
