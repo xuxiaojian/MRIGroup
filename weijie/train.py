@@ -1,7 +1,7 @@
 import configparser
 import os
 import sys
-import numpy as np
+from net import edsr, edsr_mix
 
 # Set Config File
 config = configparser.ConfigParser()
@@ -9,10 +9,13 @@ config.read('./config.ini')
 
 # Set Global Variables
 os.environ['CUDA_VISIBLE_DEVICES'] = config['GLOBAL']['index_gpu']
-dataset_path = config['GLOBAL']['dataset_path']
+
+sr_nets = {
+    'edsr': edsr,
+    'edsr_mix': edsr_mix,
+}
 
 if len(sys.argv) == 2 and str(sys.argv[1]) == 'sr':
 
-    from net import edsr
-    net = edsr.KerasNetwork(config, dataset_path)
+    net = sr_nets[config['SR']['method']].KerasNetwork(config)
     net.train()
