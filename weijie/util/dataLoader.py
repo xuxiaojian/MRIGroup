@@ -3,6 +3,47 @@ import scipy.io as sio
 from skimage.util import view_as_windows
 
 
+def AllUnetTrain(root_path):
+    mats = sio.loadmat(root_path + 'mat/1.mat')
+    nims = mats['nims']
+    cims = mats['cims']
+
+    height, width, size_batch = nims.shape
+    x = np.zeros([size_batch, height, width])
+    y = np.zeros([size_batch, height, width])
+
+    for i in range(size_batch):
+        x[i, :, :] = ImageProcesseed(nims[:, :, i])
+        y[i, :, :] = ImageProcesseed(cims[:, :, i])
+
+    x.shape = [size_batch, height, width, 1]
+    y.shape = [size_batch, height, width, 1]
+
+    return x, y
+
+
+def AllValid(root_path):
+    mats = sio.loadmat(root_path + 'mat/9.mat')
+    nims = mats['nims']
+    cims = mats['cims']
+
+    index = [10, 15, 20, 25, 30, 35]
+    height, width, _ = nims.shape
+    size_batch = index.__len__()
+
+    x = np.zeros([size_batch, height, width])
+    y = np.zeros([size_batch, height, width])
+
+    for i in range(size_batch):
+        x[i, :, :] = ImageProcesseed(nims[:, :, index[i]])
+        y[i, :, :] = ImageProcesseed(cims[:, :, index[i]])
+
+    x.shape = [size_batch, height, width, 1]
+    y.shape = [size_batch, height, width, 1]
+
+    return x, y
+
+
 def LiverValid(root_path):
     print('[dataLoader.py] Load SR Valid')
 
