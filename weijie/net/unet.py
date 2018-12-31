@@ -19,9 +19,7 @@ class KerasNetwork(object):
     def __init__(self, config):
 
         self.config = config
-
         self.set_parameter()
-        self.set_data()
 
         def psnr(y_true, y_pred):
             return tf.image.psnr(y_pred, y_true, max_val=1)
@@ -36,6 +34,8 @@ class KerasNetwork(object):
         self.net_train.summary()
 
     def train(self):
+
+        self.set_train_data()
 
         config_info = self.config_info
 
@@ -223,7 +223,7 @@ class KerasNetwork(object):
         print('Root Path: ' + self.root_path)
         print('Config Info' + self.config_info)
 
-    def set_data(self):
+    def set_train_data(self):
         from util.dataLoader import AllUnetTrain, AllValid
 
         self.train_imgs = AllUnetTrain(self.dataset_path)
@@ -236,3 +236,6 @@ class KerasNetwork(object):
         self.valid_y = self.valid_imgs[1]
 
         self.shape_batch = (self.train_x[0].shape[0], self.train_x[0].shape[1], self.train_x[0].shape[2])
+
+    def set_test_data(self):
+        print(0)

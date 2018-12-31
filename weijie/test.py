@@ -1,7 +1,7 @@
 import configparser
 import os
 import sys
-from net import sr, unet
+from net import unet
 
 # Set Config File
 config = configparser.ConfigParser()
