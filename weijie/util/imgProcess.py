@@ -40,3 +40,12 @@ def ssim(imgs, refs):
 def mse(imgs, refs):
 
     return compare_mse(im1=imgs, im2=refs)
+
+
+def normalize(imgs):
+
+    # 0-1 Normalization
+    imgs -= np.amin(imgs)
+    imgs /= np.amax(imgs)
+
+    return imgs

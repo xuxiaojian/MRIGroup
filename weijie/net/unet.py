@@ -1,51 +1,46 @@
 import tensorflow.keras as keras
 from tensorflow.keras.layers import Input, Conv2D, BatchNormalization, Dropout, \
-    MaxPool2D, Conv2DTranspose, concatenate, Activation
+    MaxPool2D, concatenate, Activation, UpSampling2D
 from tensorflow.keras.optimizers import Adam
 import shutil
 import tensorflow as tf
-import scipy.io as sio
 from tensorflow.keras.callbacks import ModelCheckpoint
 import os
 from tensorboardX import SummaryWriter
 from util import imgProcess
 import numpy as np
-import time
-from util.dataLoader import ImageProcesseed
 
 
 class KerasNetwork(object):
 
-    def __init__(self, config):
+    def __init__(self, config, shape_input):
 
-        self.config = config
-        self.set_parameter()
+        self.set_parameter(config)
+        self.shape_input = shape_input
 
+        self.net_train = self.build_network()
+        self.net_train.summary()
+        self.net_train = keras.utils.multi_gpu_model(self.net_train, gpus=2)
+
+    def train(self, x_train, y_train, x_val, y_val):
+
+        # Complie Network
         def psnr(y_true, y_pred):
             return tf.image.psnr(y_pred, y_true, max_val=1)
 
         def ssim(y_true, y_pred):
             return tf.image.ssim(y_pred, y_true, max_val=1)
 
-        self.net_train = self.build_network(self.shape_batch)
         self.net_train.compile(optimizer=Adam(lr=self.learning_rate), loss=keras.losses.mean_squared_error,
                                metrics=[psnr, ssim])
 
-        self.net_train.summary()
-
-    def train(self):
-
-        self.set_train_data()
+        # Make Sure the Svae Path is empty
+        if os.path.exists(self.save_path):
+            shutil.rmtree(self.save_path, ignore_errors=True)
+        os.makedirs(self.save_path)
 
         config_info = self.config_info
-
-        x_valid = self.valid_x
-        y_valid = self.valid_y
-
-        root_path = self.root_path
-
-        epoch_save = self.epoch_save
-        valid_path = self.valid_path
+        save_path = self.save_path
 
         class SaveValidation(keras.callbacks.Callback):
             def on_epoch_end(self, epoch, logs=None):
@@ -53,10 +48,10 @@ class KerasNetwork(object):
                 self.tbwriter.add_scalar(tag='train/epoch_psnr', scalar_value=logs['psnr'], global_step=self.batch)
                 self.tbwriter.add_scalar(tag='train/epoch_ssim', scalar_value=logs['ssim'], global_step=self.batch)
 
-                pre_valid = self.model.predict(x_valid)
-                mse_valid = imgProcess.mse(pre_valid, y_valid)
-                psnr_valid = imgProcess.psnr(pre_valid, y_valid)
-                ssim_valid = imgProcess.ssim(pre_valid, y_valid)
+                pre_valid = self.model.predict(x_val)
+                mse_valid = imgProcess.mse(pre_valid, y_val)
+                psnr_valid = imgProcess.psnr(pre_valid, y_val)
+                ssim_valid = imgProcess.ssim(pre_valid, y_val)
 
                 self.tbwriter.add_scalar(tag='valid_avg/epoch_loss', scalar_value=mse_valid,
                                          global_step=self.batch)
@@ -72,16 +67,11 @@ class KerasNetwork(object):
                                              global_step=self.batch)
 
                     pre_valid_ = pre_valid[i, :, :, :]
-                    pre_valid_ = ImageProcesseed(pre_valid_)
+                    pre_valid_ = imgProcess.normalize(pre_valid_)
 
                     self.tbwriter.add_image(tag='valid_%d/predict' % i,
                                             img_tensor=np.reshape(pre_valid_, [320, 320]),
                                             global_step=self.batch)
-
-                if (epoch + 1) % epoch_save == 0:
-                    sio.savemat(valid_path + '%d.mat' % (epoch + 1), {
-                        'pre_valid': pre_valid,
-                    })
 
             def on_batch_end(self, batch, logs=None):
                 self.batch = self.batch + 1
@@ -91,11 +81,11 @@ class KerasNetwork(object):
 
             def on_train_begin(self, logs=None):
                 self.batch = 0
-                self.tbwriter = SummaryWriter(root_path)
+                self.tbwriter = SummaryWriter(save_path)
 
-                mse_valid = imgProcess.mse(x_valid, y_valid)
-                psnr_valid = imgProcess.psnr(x_valid, y_valid)
-                ssim_valid = imgProcess.ssim(x_valid, y_valid)
+                mse_valid = imgProcess.mse(x_val, y_val)
+                psnr_valid = imgProcess.psnr(x_val, y_val)
+                ssim_valid = imgProcess.ssim(x_val, y_val)
 
                 self.tbwriter.add_text(tag='note/initial', text_string=config_info, global_step=self.batch)
                 self.tbwriter.add_scalar(tag='valid_avg/epoch_loss', scalar_value=mse_valid, global_step=self.batch)
@@ -108,134 +98,100 @@ class KerasNetwork(object):
                     self.tbwriter.add_scalar(tag='valid_%d/epoch_ssim' % i, scalar_value=ssim_valid[i],
                                              global_step=self.batch)
                     self.tbwriter.add_image(tag='valid_%d/x' % i,
-                                            img_tensor=np.reshape(x_valid[i, :, :, :], [320, 320]),
+                                            img_tensor=np.reshape(x_val[i, :, :, :], [320, 320]),
                                             global_step=self.batch)
 
                     self.tbwriter.add_image(tag='valid_%d/y' % i,
-                                            img_tensor=np.reshape(y_valid[i, :, :, :], [320, 320]),
+                                            img_tensor=np.reshape(y_val[i, :, :, :], [320, 320]),
                                             global_step=self.batch)
 
-                sio.savemat(valid_path + 'init.mat', {
-                    'x': x_valid,
-                    'y': y_valid,
-                })
-
-                pass
-
         # Train Network
-        self.net_train.fit(x=self.train_x, y=self.train_y, batch_size=self.batch_size, epochs=self.epochs,
-                           callbacks=[ModelCheckpoint(filepath=self.model_path + '{epoch:02d}_weight.h5',
-                                                      period=self.epoch_save, save_weights_only=True),
+        self.net_train.fit(x=x_train, y=y_train, batch_size=self.batch_size, epochs=self.epochs,
+                           callbacks=[ModelCheckpoint(filepath=self.save_path + '{epoch:02d}_weight.h5',
+                                                      period=50, save_weights_only=True),
                                       SaveValidation(),
                                       ])
-        self.net_train.save(self.model_path + 'final_model.h5')
+        self.net_train.save_weights(self.save_path + 'final_weight.h5')
 
-    def build_network(self, shape_input, level=4, root_filters=64, rate_dropout=0.2, kernel_size=3):
+    def build_network(self):
 
-        inputs = Input(shape=shape_input)
+        inputs = Input(shape=self.shape_input)
         conv = []
 
-        for i in range(level):
+        for i in range(self.net_level):
             if i == 0:
-                net = Conv2D(filters=root_filters * (2 ** i), kernel_size=kernel_size, padding='same')(inputs)
+                net = Conv2D(filters=self.root_filters * (2 ** i), kernel_size=self.kernel_size, padding='same')(inputs)
             else:
-                net = Conv2D(filters=root_filters * (2 ** i), kernel_size=kernel_size, padding='same')(net)
+                net = Conv2D(filters=self.root_filters * (2 ** i), kernel_size=self.kernel_size, padding='same')(net)
 
-            net = BatchNormalization()(net)
             net = Activation('relu')(net)
-            net = Dropout(rate_dropout)(net)
+            net = BatchNormalization()(net)
+            net = Dropout(self.rate_dropout)(net)
 
-            net = Conv2D(filters=root_filters * (2 ** i), kernel_size=kernel_size, padding='same')(net)
-            net = BatchNormalization()(net)
+            net = Conv2D(filters=self.root_filters * (2 ** i), kernel_size=self.kernel_size, padding='same')(net)
             net = Activation('relu')(net)
-            net = Dropout(rate_dropout)(net)
+            net = BatchNormalization()(net)
+            net = Dropout(self.rate_dropout)(net)
 
             conv.append(net)
             net = MaxPool2D(pool_size=(2, 2))(net)
 
-        net = Conv2D(filters=root_filters * (2 ** level), kernel_size=kernel_size, padding='same')(net)
-        net = BatchNormalization()(net)
+        net = Conv2D(filters=self.root_filters * (2 ** self.net_level), kernel_size=self.kernel_size, padding='same')(net)
         net = Activation('relu')(net)
-        net = Dropout(rate_dropout)(net)
-
-        net = Conv2D(filters=root_filters * (2 ** level), kernel_size=kernel_size, padding='same')(net)
         net = BatchNormalization()(net)
+        net = Dropout(self.rate_dropout)(net)
+
+        net = Conv2D(filters=self.root_filters * (2 ** self.net_level), kernel_size=self.kernel_size, padding='same')(net)
         net = Activation('relu')(net)
-        net = Dropout(rate_dropout)(net)
+        net = BatchNormalization()(net)
+        net = Dropout(self.rate_dropout)(net)
 
-        for i in range(level):
-            net = Conv2DTranspose(filters=root_filters * (2 ** (level - 1 - i)), kernel_size=kernel_size, strides=2,
-                                  padding='same')(net)
-            net = BatchNormalization()(net)
+        for i in range(self.net_level):
+            # net = Conv2DTranspose(filters=self.root_filters * (2 ** (self.net_level - 1 - i)),
+            #                       kernel_size=self.kernel_size, strides=2,
+            #                       padding='same')(net)
+            net = UpSampling2D()(net)
             net = Activation('relu')(net)
-            net = Dropout(rate_dropout)(net)
-
-            net = concatenate([net, conv[level - 1 - i]], axis=-1)
-
-            net = Conv2D(filters=root_filters * (2 ** (level - 1 - i)), kernel_size=kernel_size, padding='same')(net)
             net = BatchNormalization()(net)
-            net = Activation('relu')(net)
-            net = Dropout(rate_dropout)(net)
+            net = Dropout(self.rate_dropout)(net)
 
-            net = Conv2D(filters=root_filters * (2 ** (level - 1 - i)), kernel_size=kernel_size, padding='same')(net)
+            net = concatenate([net, conv[self.net_level - 1 - i]], axis=-1)
+
+            net = Conv2D(filters=self.root_filters * (2 ** (self.net_level - 1 - i)),
+                         kernel_size=self.kernel_size, padding='same')(net)
+            net = Activation('relu')(net)
             net = BatchNormalization()(net)
-            net = Activation('relu')(net)
-            net = Dropout(rate_dropout)(net)
+            net = Dropout(self.rate_dropout)(net)
 
-        net = Conv2D(filters=1, kernel_size=kernel_size, padding='same')(net)
+            net = Conv2D(filters=self.root_filters * (2 ** (self.net_level - 1 - i)),
+                         kernel_size=self.kernel_size, padding='same')(net)
+            net = Activation('relu')(net)
+            net = BatchNormalization()(net)
+            net = Dropout(self.rate_dropout)(net)
+
+        net = Conv2D(filters=1, kernel_size=self.kernel_size, padding='same')(net)
 
         return keras.Model(inputs=inputs, outputs=net)
 
-    def set_parameter(self):
-        self.dataset_path = self.config['GLOBAL']['dataset_path']
-        self.experiment_path = self.config['GLOBAL']['experiment_path']
+    def set_parameter(self, config):
+        self.experiment_path = config['GLOBAL']['experiment_path']
 
-        day = str(time.localtime().tm_mon) + str(time.localtime().tm_mday) + str(time.localtime().tm_year)
-        method = 'unet'
-        times = str(time.localtime().tm_hour) + str(time.localtime().tm_min)
-
-        self.root_path = self.experiment_path + day + '/' + method + '_' + times + '/'
-        self.valid_path = self.root_path + 'valid' + '/'
-        self.model_path = self.root_path + 'model' + '/'
+        self.save_path = self.experiment_path + config['UNET']['save_path']
 
         # Training Parament
-        self.batch_size = int(self.config['UNET']['batch_size'])
-        self.epochs = int(self.config['UNET']['epochs'])
-        self.epoch_save = int(self.config['UNET']['epoch_save'])
-        self.learning_rate = float(self.config['UNET']['learning_rate'])
+        self.batch_size = int(config['UNET']['batch_size'])
+        self.epochs = int(config['UNET']['epochs'])
+        self.learning_rate = float(config['UNET']['learning_rate'])
 
-        # Make Sure the path is empty
-        if os.path.exists(self.root_path):
-            shutil.rmtree(self.root_path, ignore_errors=True)
-        os.makedirs(self.root_path)
+        # Network Parameter
+        self.net_level = int(config['UNET']['net_level'])
+        self.root_filters = int(config['UNET']['root_filters'])
+        self.rate_dropout = float(config['UNET']['rate_dropout'])
+        self.kernel_size = int(config['UNET']['kernel_size'])
 
-        if os.path.exists(self.valid_path):
-            shutil.rmtree(self.valid_path, ignore_errors=True)
-        os.makedirs(self.valid_path)
+        config_file = open('./config.ini', 'r')
+        self.config_info = config_file.read()
+        config_file.close()
 
-        if os.path.exists(self.model_path):
-            shutil.rmtree(self.model_path, ignore_errors=True)
-        os.makedirs(self.model_path)
-
-        config_info = open('./config.ini', 'r').read()
-        self.config_info = config_info
-
-        print('Root Path: ' + self.root_path)
+        print('Model Path: ' + self.save_path)
         print('Config Info' + self.config_info)
-
-    def set_train_data(self):
-        from util.dataLoader import AllUnetTrain, AllValid
-
-        self.train_imgs = AllUnetTrain(self.dataset_path)
-        self.valid_imgs = AllValid(self.dataset_path)
-
-        self.train_x = self.train_imgs[0]
-        self.train_y = self.train_imgs[1]
-
-        self.valid_x = self.valid_imgs[0]
-        self.valid_y = self.valid_imgs[1]
-
-        self.shape_batch = (self.train_x[0].shape[0], self.train_x[0].shape[1], self.train_x[0].shape[2])
-
-    def set_test_data(self):
-        print(0)
