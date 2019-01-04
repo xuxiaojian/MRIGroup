@@ -5,6 +5,9 @@ from collections import OrderedDict
 import logging
 import os
 import shutil
+import numpy as np
+from util import imgProcess
+from skimage.io import imsave
 
 
 class TFTrainer(object):
@@ -93,7 +96,7 @@ class TFTrainer(object):
         return init
 
     def train(self, data_provider, output_path, valid_provider, valid_size, training_iters=100, epochs=1000,
-              dropout=0.75, display_step=1, save_epoch=50, restore=False, write_graph=False,
+              dropout=0.75, display_step=1, save_epoch=500, restore=False, write_graph=False,
               validation_path=None):
         """
         Lauches the training process
@@ -171,17 +174,9 @@ class TFTrainer(object):
                 # output statistics for epoch
                 self.output_epoch_stats(epoch, total_loss, training_iters, lr)
                 if epoch % 20 == 0:
-                    self.output_valstats(sess, summary_writer, step, valid_x, valid_y, "epoch_%s" % epoch,
-                                         store_mat=True)
+                    self.output_valstats(sess, summary_writer, step, valid_x, valid_y, "epoch_%s" % epoch)
                 else:
                     self.output_valstats(sess, summary_writer, step, valid_x, valid_y, "epoch_%s" % epoch)
-
-                if epoch % save_epoch == 0:
-                    directory = os.path.join(output_path, "{}_cpkt/".format(step))
-                    if not os.path.exists(directory):
-                        os.makedirs(directory)
-                    path = os.path.join(directory, "model.cpkt".format(step))
-                    self.net.save(sess, path)
 
                 save_path = self.net.save(sess, save_path)
 
@@ -211,7 +206,7 @@ class TFTrainer(object):
                                                                                                               loss,
                                                                                                               avg_psnr))
 
-    def output_valstats(self, sess, summary_writer, step, batch_x, batch_y, name, store_img=False, store_mat=False):
+    def output_valstats(self, sess, summary_writer, step, batch_x, batch_y, name):
         prediction, loss, avg_psnr = sess.run([self.net.recons,
                                                self.net.valid_loss,
                                                self.net.valid_avg_psnr],
@@ -224,6 +219,14 @@ class TFTrainer(object):
         self.record_summary(summary_writer, 'valid_avg_psnr', avg_psnr, step)
 
         logging.info("Validation Statistics, validation loss= {:.4f}, Avg PSNR= {:.4f}".format(loss, avg_psnr))
+
+        img_val = prediction[2, :, :, :]
+        img_val.shape = [320, 320]
+        img_val = imgProcess.normalize(img_val)
+        img_val = img_val * 255
+        img_val = img_val.astype(np.uint8)
+        img_val = imgProcess.imadjust(img_val)
+        imsave(self.validation_path + str(step) + '.png', img_val)
 
     def record_summary(self, writer, name, value, step):
         summary = tf.Summary()
@@ -242,7 +245,7 @@ class TFNetwork(object):
     :param kwargs: args passed to create_net function.
     """
 
-    def __init__(self, img_channels=3, truth_channels=3, cost="mean_squared_error"):
+    def __init__(self, img_channels=1, truth_channels=1, cost="mean_squared_error"):
         tf.reset_default_graph()
 
         # You can change it. But since I have no interest to do that, I set it in __init__().
@@ -319,7 +322,7 @@ class TFNetwork(object):
 
         return loss
 
-    def predict(self, model_path, x_test, keep_prob, phase=False):
+    def predict(self, model_path, x_test, keep_prob, phase=False, batchsize=1):
         """
         Uses the model to create a prediction for the given data
 
@@ -330,6 +333,14 @@ class TFNetwork(object):
         :returns prediction: The unet prediction Shape [n, px, py, labels] (px=nx-self.offset/2)
         """
 
+        number_batch = x_test.shape[0]
+        if number_batch % batchsize is not 0:
+            print('Error: NUMBER OF BATCH OF x_test SHOULD BE DIVISIABLE BY batchsize')
+            exit(-1)
+
+        from util import imgProcess
+        prediction = np.zeros_like(x_test, dtype=np.float64)
+
         init = tf.global_variables_initializer()
         with tf.Session() as sess:
             # Initialize variables
@@ -338,10 +349,22 @@ class TFNetwork(object):
             # Restore model weights from previously saved model
             self.restore(sess, model_path)
 
-            prediction = sess.run(self.recons, feed_dict={self.x: x_test,
-                                                          self.keep_prob: keep_prob,
-                                                          self.phase: phase})  # set phase to False for every prediction
-            # define operation
+            count = 0
+            for i in range(int(number_batch / batchsize)):
+                # print(np.arange(count, count + batchsize))
+                x = x_test[count:count + batchsize, :, :, :]
+                x.shape = [batchsize, 320, 320, 1]
+
+                prediction[count:count + batchsize, :, :, :] = sess.run(self.recons, feed_dict={self.x: x,
+                                                                        self.keep_prob: keep_prob,
+                                                                        self.phase: phase})
+                prediction[count:count + batchsize, :, :, :] = \
+                    imgProcess.normalize(prediction[count:count + batchsize, :, :, :])
+                count = count + batchsize
+
+                # set phase to False for every prediction
+                print('UNet Feature Extraction: [%.3f] Percentage' % ((i * 100)/int(number_batch / batchsize)))
+
         return prediction
 
     def save(self, sess, model_path):
@@ -563,3 +586,83 @@ def max_pool(x, n):
 
 def concat(x1, x2):
     return tf.concat([x1, x2], 3)
+
+# noinspection PyTupleAssignmentBalance,PyUnresolvedReferences
+class BaseDataProvider(object):
+
+    def __init__(self, a_min=None, a_max=None):
+        self.a_min = a_min if a_min is not None else -np.inf
+        self.a_max = a_max if a_min is not None else np.inf
+
+    def __call__(self, n, fix=False):
+        if type(n) == int and not fix:
+            # X and Y are the images and truths
+            train_data, truths = self._next_batch(n)
+        elif type(n) == int and fix:
+            train_data, truths = self._fix_batch(n)
+        elif type(n) == str and n == 'full':
+            train_data, truths = self._full_batch()
+        else:
+            raise ValueError("Invalid batch_size: " % n)
+
+        return train_data, truths
+
+    def _next_batch(self, n):
+        pass
+
+    def _full_batch(self):
+        pass
+
+
+class SimpleDataProvider(BaseDataProvider):
+
+    def __init__(self, data, truths):
+        super(SimpleDataProvider, self).__init__()
+        self.data = np.float64(data)
+        self.truths = np.float64(truths)
+        self.img_channels = self.data[0].shape[2]
+        self.truth_channels = self.truths[0].shape[2]
+        self.file_count = data.shape[0]
+
+    def _next_batch(self, n):
+        idx = np.random.choice(self.file_count, n, replace=False)
+        img = self.data[idx[0]]
+        nx = img.shape[0]
+        ny = img.shape[1]
+        X = np.zeros((n, nx, ny, self.img_channels))
+        Y = np.zeros((n, nx, ny, self.truth_channels))
+        for i in range(n):
+            X[i] = self._process_data(self.data[idx[i]])
+            Y[i] = self._process_truths(self.truths[idx[i]])
+        return X, Y
+
+    def _fix_batch(self, n):
+        # first n data
+        img = self.data[0]
+        nx = img.shape[0]
+        ny = img.shape[1]
+        X = np.zeros((n, nx, ny, self.img_channels))
+        Y = np.zeros((n, nx, ny, self.truth_channels))
+        for i in range(n):
+            X[i] = self._process_data(self.data[i])
+            Y[i] = self._process_truths(self.truths[i])
+        return X, Y
+
+    def _full_batch(self):
+        return self.data, self.truths
+
+    def _process_truths(self, truth):
+        # normalization by channels
+        truth = np.clip(np.fabs(truth), self.a_min, self.a_max)
+        for channel in range(self.truth_channels):
+            truth[:, :, channel] -= np.amin(truth[:, :, channel])
+            truth[:, :, channel] /= np.amax(truth[:, :, channel])
+        return truth
+
+    def _process_data(self, data):
+        # normalization by channels
+        data = np.clip(np.fabs(data), self.a_min, self.a_max)
+        for channel in range(self.img_channels):
+            data[:, :, channel] -= np.amin(data[:, :, channel])
+            data[:, :, channel] /= np.amax(data[:, :, channel])
+        return data
