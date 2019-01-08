@@ -11,7 +11,7 @@ def train_sr(root_path):
 
     # For Test Code
     # index = [2]
-    # num_imgs = 70
+    # num_imgs = 96
 
     print('Begin Loading Train Data....')
     height = 320

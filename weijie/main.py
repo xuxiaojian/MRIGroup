@@ -39,7 +39,7 @@ if len(sys.argv) == 3 and str(sys.argv[1]) == 'sr':
         unet_model_path = '/home/xiaojianxu/gan/experiment/dec31/unet_ver3/final/model.cpkt'
         net = scadec.TFNetwork()
         print('Extract Feature of Training data')
-        x_train_feature = net.predict(unet_model_path, x_train_noised, 1, True, batchsize=70)
+        x_train_feature = net.predict(unet_model_path, x_train_noised, 1, True, batchsize=48)
         print('Extract Feature of Validation data')
         x_val_feature = net.predict(unet_model_path, x_val_noised, 1, True, batchsize=1)
 
