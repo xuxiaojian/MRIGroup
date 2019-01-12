@@ -118,12 +118,6 @@ class KerasNetwork(object):
 
                 pass
 
-        # gpu_config = tf.ConfigProto()
-        # gpu_config.gpu_options.allow_growth = True
-        # gpu_config.allow_soft_placement = True
-        # sess = tf.Session(config=gpu_config)
-        # keras.backend.set_session(session=sess)
-
         # Train Network
         self.net_train.fit(x=x_train, y=y_train, batch_size=self.batch_size * self.num_gpu, epochs=self.epochs,
                            callbacks=[ModelCheckpoint(filepath=self.save_path + '{epoch:02d}_weight.h5',
@@ -197,10 +191,4 @@ class KerasNetwork(object):
         y_crops.shape = [num_patch, patch_size, patch_size, channel_y]
         print('Reshape Array Done.')
 
-        # from skimage.io import imsave
-        # imsave('noised.png', x_crops[100, :, :, 0])
-        # imsave('feature.png', x_crops[100, :, :, 1])
-        # imsave('clear.png', y_crops[100, :, :, 0])
-
-        # exit(233)
         return x_crops, y_crops
