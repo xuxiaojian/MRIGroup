@@ -1,12 +1,5 @@
-import cv2 as cv
 import numpy as np
 from skimage.measure import compare_psnr, compare_ssim, compare_mse
-
-clahe = cv.createCLAHE(clipLimit=1., tileGridSize=(1, 1))  # Used in imadjust
-
-
-def imadjust(img):
-    return clahe.apply(img)
 
 
 def psnr(imgs, refs):
@@ -37,9 +30,18 @@ def ssim(imgs, refs):
     return np.array(value, dtype=np.float32)
 
 
-def mse(imgs, refs):
+def loss(imgs, refs, type_='mse'):
+    height = imgs.shape[1]
+    width = imgs.shape[2]
+    value = []
 
-    return compare_mse(im1=imgs, im2=refs)
+    for i in range(imgs.shape[0]):
+        img = imgs[i, :, :, :].reshape([height, width])
+        ref = refs[i, :, :, :].reshape([height, width])
+        if type_ == 'mse':
+            value.append(compare_mse(im1=img, im2=ref))
+
+    return np.array(value, dtype=np.float32)
 
 
 def normalize(imgs):
