@@ -25,7 +25,8 @@ def ssim_metrics(y_true, y_pred):
 
 # Custom callback for Kearas
 class KearsCallback(keras.callbacks.Callback):
-    def __init__(self, imgs_data_train, imgs_label_train, imgs_data_valid, imgs_label_valid, path, config_info):
+    def __init__(self, imgs_data_train, imgs_label_train, imgs_data_valid, imgs_label_valid,
+                 path, config_info, val_save_epoch):
         super().__init__()
 
         self.imgs_data_train = imgs_data_train
@@ -34,6 +35,7 @@ class KearsCallback(keras.callbacks.Callback):
         self.imgs_label_valid = imgs_label_valid
 
         self.path = path
+        self.val_save_epoch = val_save_epoch
         self.val_path = self.path + 'val/'
         new_folder(self.val_path)
 
@@ -49,7 +51,8 @@ class KearsCallback(keras.callbacks.Callback):
 
         self.writer.imgs_train_epoch(imgs_predict_train, self.imgs_label_train, step=self.step)
         self.writer.imgs_valid_epoch(imgs_predict_valid, self.imgs_label_valid, step=self.step)
-        sio.savemat(self.val_path + '%d.mat' % self.step, {'predict': imgs_predict_valid})
+        if epoch % self.val_save_epoch == 0:
+            sio.savemat(self.val_path + 'epoch_%d.mat' % epoch, {'predict': imgs_predict_valid})
 
     def on_batch_end(self, batch, logs=None):
         self.writer.train_batch(loss=logs['loss'], psnr=logs['psnr_metrics'], ssim=logs['psnr_metrics'], step=self.step)

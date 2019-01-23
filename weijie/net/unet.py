@@ -40,7 +40,9 @@ class KerasNetwork(object):
 
         costom_callback = KearsCallback(self.imgs_data_train, self.imgs_label_train,
                                         self.imgs_data_valid, self.imgs_label_valid,
-                                        self.FLAGS.unet_output_path, self.FLAGS.flags_into_string())
+                                        self.FLAGS.unet_output_path,
+                                        self.FLAGS.flags_into_string().replace('\n', '\n\n'),
+                                        self.FLAGS.unet_epoch_save_val)
         save_model_callback = ModelCheckpoint(filepath=model_path + '{epoch:02d}_weight.h5',
                                               period=self.FLAGS.unet_epoch_save_model, save_weights_only=True)
 
