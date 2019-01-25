@@ -46,12 +46,12 @@ class BaseKaresNetwork(object):
     def train(self):
         x_train, y_train, x_train_imgs, y_train_imgs, x_val, y_val, x_val_imgs, y_val_imgs = self.set_train_imgs()
 
-        model_path = self.FLAGS_DICT[self.config_name + 'output_path'] + 'model/'
-        new_folder(self.FLAGS_DICT[self.config_name + 'output_path'])
+        model_path = self.FLAGS_DICT['output_path'] + 'model/'
+        new_folder(self.FLAGS_DICT['output_path'])
         new_folder(model_path)
 
         costom_callback = KearsCallback(x_train_imgs, y_train_imgs, x_val_imgs, y_val_imgs,
-                                        self.FLAGS_DICT[self.config_name + 'output_path'],
+                                        self.FLAGS_DICT['output_path'],
                                         tf.flags.FLAGS.flags_into_string().replace('\n', '\n\n'),
                                         self.FLAGS_DICT[self.config_name + 'epoch_save_val'])
         save_model_callback = ModelCheckpoint(filepath=model_path + '{epoch:02d}_weight.h5',

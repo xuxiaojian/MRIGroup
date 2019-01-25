@@ -109,13 +109,16 @@ class TBXWriter(object):
 
         width_img = x_imgs.shape[1]
         height_img = x_imgs.shape[2]
-        channel = x_imgs.shape[3]
+
+        channel_x = x_imgs.shape[3]
+        channel_y = y_imgs.shape[3]
 
         for i in range(x_imgs.shape[0]):
-            for j in range(channel):
+            for j in range(channel_x):
                 self.writer.add_image(tag='train/index%d_chaneel%d_data' % (i, j),
                                       img_tensor=img_process.normalize(x_imgs[i, :, :, j].reshape([width_img, height_img])),
                                       global_step=0, dataformats='HW')
+            for j in range(channel_y):
                 self.writer.add_image(tag='train/index%d_chaneel%d_label' % (i, j),
                                       img_tensor=img_process.normalize(y_imgs[i, :, :, j].reshape([width_img, height_img])),
                                       global_step=0, dataformats='HW')
@@ -142,13 +145,16 @@ class TBXWriter(object):
     def imgs_valid_init(self, x_imgs, y_imgs):
         width_img = x_imgs.shape[1]
         height_img = x_imgs.shape[2]
-        channel = x_imgs.shape[3]
+
+        channel_x = x_imgs.shape[3]
+        channel_y = y_imgs.shape[3]
 
         for i in range(x_imgs.shape[0]):
-            for j in range(channel):
+            for j in range(channel_x):
                 self.writer.add_image(tag='valid/index%d_chaneel%d_data' % (i, j),
                                       img_tensor=img_process.normalize(x_imgs[i, :, :, j].reshape([width_img, height_img])),
                                       global_step=0, dataformats='HW')
+            for j in range(channel_y):
                 self.writer.add_image(tag='valid/index%d_chaneel%d_label' % (i, j),
                                       img_tensor=img_process.normalize(y_imgs[i, :, :, j].reshape([width_img, height_img])),
                                       global_step=0, dataformats='HW')

@@ -5,7 +5,7 @@ from skimage.util import view_as_windows
 
 
 # noinspection PyUnresolvedReferences
-def mat2numpy(root_path, type_, index_mat, index_images):
+def mat2numpy(root_path, type_, index_mat, index_images, debug=False):
     ####################################################
     #        Convert .Mat to Images(Numpy Format)      #
     #                                                  #
@@ -53,6 +53,10 @@ def mat2numpy(root_path, type_, index_mat, index_images):
     for i in range(index_images.__len__()):
         data_images[i] = data[index_images[i]]
         ground_truth_images[i] = ground_truth[index_images[i]]
+
+    if debug:
+        data = data[:10]
+        ground_truth = ground_truth[:10]
 
     return data, ground_truth, data_images, ground_truth_images
 

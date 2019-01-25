@@ -14,12 +14,14 @@ class KerasNetwork(BaseKaresNetwork):
         x_train, y_train, x_train_imgs, y_train_imgs = data_loader.mat2numpy(
             self.FLAGS_DICT['root_path'], self.FLAGS_DICT['dataset_type'],
             self.FLAGS_DICT[self.config_name + 'index_train_mat'],
-            self.FLAGS_DICT[self.config_name + 'index_train_images'])
+            self.FLAGS_DICT[self.config_name + 'index_train_images'],
+            self.FLAGS_DICT['debug'])
 
         x_val, y_val, x_val_imgs, y_val_imgs = data_loader.mat2numpy(
             self.FLAGS_DICT['root_path'], self.FLAGS_DICT['dataset_type'],
             self.FLAGS_DICT['index_valid_mat'],
-            self.FLAGS_DICT['index_valid_images'])
+            self.FLAGS_DICT['index_valid_images'],
+            self.FLAGS_DICT['debug'])
 
         return x_train, y_train, x_train_imgs, y_train_imgs, x_val, y_val, x_val_imgs, y_val_imgs
 
