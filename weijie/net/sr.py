@@ -1,5 +1,5 @@
 from net.base import BaseKaresNetwork
-from util import data_loader
+from util import data_loader, img_process
 from tensorflow import keras as keras
 import numpy as np
 from tensorflow.python.keras.layers import Input, Conv2D, BatchNormalization, Activation, Add
@@ -67,6 +67,22 @@ class KerasNetwork(BaseKaresNetwork):
         x_train_imgs_feature2 = unet_model.network.predict(x_train_imgs_feature1, verbose=1)
         x_val_feature2 = unet_model.network.predict(x_val__feature1, verbose=1)
         x_val_imgs_feature2 = unet_model.network.predict(x_val_imgs_feature1, verbose=1)
+
+        batch_size = x_train_feature2.shape[0]
+        for i in range(batch_size):
+            x_train_feature2[i, :, :, :] = img_process.normalize(x_train_feature2[i, :, :, :])
+
+        batch_size = x_train_imgs_feature2.shape[0]
+        for i in range(batch_size):
+            x_train_imgs_feature2[i, :, :, :] = img_process.normalize(x_train_imgs_feature2[i, :, :, :])
+
+        batch_size = x_val_feature2.shape[0]
+        for i in range(batch_size):
+            x_val_feature2[i, :, :, :] = img_process.normalize(x_val_feature2[i, :, :, :])
+
+        batch_size = x_val_imgs_feature2.shape[0]
+        for i in range(batch_size):
+            x_val_imgs_feature2[i, :, :, :] = img_process.normalize(x_val_imgs_feature2[i, :, :, :])
 
         x_train = np.concatenate([x_train_feature1, x_train_feature2], axis=-1)
         x_train_imgs = np.concatenate([x_train_imgs_feature1, x_train_imgs_feature2], axis=-1)
