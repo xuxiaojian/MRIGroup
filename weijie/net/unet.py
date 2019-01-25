@@ -1,68 +1,36 @@
-from tensorflow import keras as keras
+from tensorflow.python.keras import Model
 from tensorflow.python.keras.layers import Input, Conv2D, BatchNormalization, Dropout, \
     MaxPool2D, Conv2DTranspose, concatenate, Activation
-from tensorflow.python.keras.optimizers import Adam
-import tensorflow as tf
-from util.data_recorder import psnr_metrics, ssim_metrics, KearsCallback, new_folder
-from tensorflow.python.keras.callbacks import ModelCheckpoint
 from util import data_loader
+from net.base import BaseKaresNetwork
 
 
-class KerasNetwork(object):
+class KerasNetwork(BaseKaresNetwork):
 
     def __init__(self):
-        self.FLAGS = tf.flags.FLAGS
-        self.network = self.build_network()
-        self.network.summary()
-        self.network.compile(optimizer=Adam(lr=self.FLAGS.unet_learning_rate),
-                             loss=keras.losses.mean_squared_error,
-                             metrics=[psnr_metrics, ssim_metrics])
+        super().__init__(config_name='unet_')
 
-    def __call__(self, mode):
-        if mode == 'train':
-            self.train()
+    def set_train_imgs(self):
+        x_train, y_train, x_train_imgs, y_train_imgs = data_loader.mat2numpy(
+            self.FLAGS_DICT['root_path'], self.FLAGS_DICT['dataset_type'],
+            self.FLAGS_DICT[self.config_name + 'index_train_mat'],
+            self.FLAGS_DICT[self.config_name + 'index_train_images'])
 
-    def set_train_images(self):
-        self.data_train, self.label_train, self.imgs_data_train, self.imgs_label_train = data_loader.mat2numpy(
-            self.FLAGS.root_path, self.FLAGS.dataset_type,
-            self.FLAGS.index_train_unet_mat, self.FLAGS.index_train_unet_images)
+        x_val, y_val, x_val_imgs, y_val_imgs = data_loader.mat2numpy(
+            self.FLAGS_DICT['root_path'], self.FLAGS_DICT['dataset_type'],
+            self.FLAGS_DICT['index_valid_mat'],
+            self.FLAGS_DICT['index_valid_images'])
 
-        self.data_valid, self.label_valid, self.imgs_data_valid, self.imgs_label_valid = data_loader.mat2numpy(
-            self.FLAGS.root_path, self.FLAGS.dataset_type,
-            self.FLAGS.index_valid_mat, self.FLAGS.index_valid_images)
+        return x_train, y_train, x_train_imgs, y_train_imgs, x_val, y_val, x_val_imgs, y_val_imgs
 
-    def train(self):
-        self.set_train_images()
+    def set_network(self):
 
-        model_path = self.FLAGS.unet_output_path + 'model/'
-        new_folder(self.FLAGS.unet_output_path)
-        new_folder(model_path)
-
-        costom_callback = KearsCallback(self.imgs_data_train, self.imgs_label_train,
-                                        self.imgs_data_valid, self.imgs_label_valid,
-                                        self.FLAGS.unet_output_path,
-                                        self.FLAGS.flags_into_string().replace('\n', '\n\n'),
-                                        self.FLAGS.unet_epoch_save_val)
-        save_model_callback = ModelCheckpoint(filepath=model_path + '{epoch:02d}_weight.h5',
-                                              period=self.FLAGS.unet_epoch_save_model, save_weights_only=True)
-
-        self.network.fit(x=self.data_train, y=self.label_train,
-                         batch_size=self.FLAGS.unet_batch_size,
-                         epochs=self.FLAGS.unet_epoch,
-                         validation_data=(self.data_valid, self.label_valid),
-                         callbacks=[costom_callback, save_model_callback])
-
-        self.network.save_weights(model_path + 'final_weight.h5')
-        self.network.save(model_path + 'final_model.h5')
-
-        pass
-
-    def build_network(self):
-
-        level = self.FLAGS.unet_net_level
-        root_filters = self.FLAGS.unet_net_root_filters
-        rate_dropout = self.FLAGS.unet_net_dropout
-        kernel_size = self.FLAGS.unet_net_kernel_size
+        input_shape = self.FLAGS_DICT[self.config_name + 'input_shape']
+        level = self.FLAGS_DICT[self.config_name + 'level']
+        root_filters = self.FLAGS_DICT[self.config_name + 'root_filters']
+        rate_dropout = self.FLAGS_DICT[self.config_name + 'dropout']
+        kernel_size = self.FLAGS_DICT[self.config_name + 'kernel_size']
+        conv_time = self.FLAGS_DICT[self.config_name + 'conv_time']
 
         def conv_block(input_, fliters_coff):
             input_ = Conv2D(filters=root_filters * fliters_coff, kernel_size=kernel_size, padding='same')(input_)
@@ -79,29 +47,26 @@ class KerasNetwork(object):
             input_ = Dropout(rate_dropout)(input_)
             return input_
 
-        inputs_ = Input(shape=self.FLAGS.unet_net_input_shape)
+        inputs_ = Input(shape=input_shape)
+        net = conv_block(inputs_, 1)
         conv = []
-        net = None
 
         for i in range(level):
-            if i == 0:
-                net = conv_block(inputs_, 2 ** i)
-            else:
+            for j in range(conv_time):
                 net = conv_block(net, 2 ** i)
 
-            net = conv_block(net, 2 ** i)
             conv.append(net)
             net = MaxPool2D(pool_size=(2, 2))(net)
 
-        net = conv_block(net, 2 ** level)
-        net = conv_block(net, 2 ** level)
+        for j in range(conv_time):
+            net = conv_block(net, 2 ** level)
 
         for i in range(level):
             net = dconv_block(net, 2 ** (level - 1 - i))
             net = concatenate([net, conv[level - 1 - i]], axis=-1)
-            net = conv_block(net, 2 ** (level - 1 - i))
-            net = conv_block(net, 2 ** (level - 1 - i))
+            for j in range(conv_time):
+                net = conv_block(net, 2 ** (level - 1 - i))
 
         net = Conv2D(filters=1, kernel_size=kernel_size, padding='same')(net)
 
-        return keras.Model(inputs=inputs_, outputs=net)
+        return Model(inputs=inputs_, outputs=net)
