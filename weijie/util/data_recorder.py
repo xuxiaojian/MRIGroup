@@ -49,8 +49,8 @@ class KearsCallback(keras.callbacks.Callback):
         self.writer.valid_epoch(loss=logs['val_loss'], psnr=logs['val_psnr_metrics'], ssim=logs['val_ssim_metrics'],
                                 step=self.step)
 
-        self.writer.imgs_train_epoch(imgs_predict_train, self.imgs_label_train, step=self.step)
-        self.writer.imgs_valid_epoch(imgs_predict_valid, self.imgs_label_valid, step=self.step)
+        self.writer.imgs_train_epoch(imgs_predict_train, step=self.step)
+        self.writer.imgs_valid_epoch(imgs_predict_valid, step=self.step)
         if (epoch + 1) % self.val_save_epoch == 0:
             sio.savemat(self.val_path + 'epoch_%d.mat' % (epoch + 1), {'predict': imgs_predict_valid})
 
@@ -86,21 +86,14 @@ class TBXWriter(object):
         self.writer.add_scalar(tag='valid_epoch/psnr', scalar_value=psnr, global_step=step)
         self.writer.add_scalar(tag='valid_epoch/ssim', scalar_value=ssim, global_step=step)
 
-    def imgs_train_epoch(self, imgs, y_imgs, step):
-        loss = img_process.loss(imgs, y_imgs, type_='mse')
-        psnr = img_process.psnr(imgs, y_imgs)
-        ssim = img_process.ssim(imgs, y_imgs)
-
+    def imgs_train_epoch(self, imgs, step):
         width_img = imgs.shape[1]
         height_img = imgs.shape[2]
         channel = imgs.shape[3]
 
         for i in range(imgs.shape[0]):
-            self.writer.add_scalar(tag='imgs_train/index%d_loss' % i, scalar_value=loss[i], global_step=step)
-            self.writer.add_scalar(tag='imgs_train/index%d_psnr' % i, scalar_value=psnr[i], global_step=step)
-            self.writer.add_scalar(tag='imgs_train/index%d_ssim' % i, scalar_value=ssim[i], global_step=step)
             for j in range(channel):
-                self.writer.add_image(tag='train/index%d_chaneel%d_predict' % (i, j),
+                self.writer.add_image(tag='train/index%d_predict_chaneel%d' % (i, j),
                                       img_tensor=img_process.normalize(imgs[i].reshape([width_img, height_img])),
                                       global_step=step, dataformats='HW')
         pass
@@ -115,30 +108,22 @@ class TBXWriter(object):
 
         for i in range(x_imgs.shape[0]):
             for j in range(channel_x):
-                self.writer.add_image(tag='train/index%d_chaneel%d_data' % (i, j),
+                self.writer.add_image(tag='train/index%d_data_chaneel%d' % (i, j),
                                       img_tensor=img_process.normalize(x_imgs[i, :, :, j].reshape([width_img, height_img])),
                                       global_step=0, dataformats='HW')
             for j in range(channel_y):
-                self.writer.add_image(tag='train/index%d_chaneel%d_label' % (i, j),
+                self.writer.add_image(tag='train/index%d_label_chaneel%d' % (i, j),
                                       img_tensor=img_process.normalize(y_imgs[i, :, :, j].reshape([width_img, height_img])),
                                       global_step=0, dataformats='HW')
 
-    def imgs_valid_epoch(self, imgs, y_imgs, step):
-
-        loss = img_process.loss(imgs, y_imgs, type_='mse')
-        psnr = img_process.psnr(imgs, y_imgs)
-        ssim = img_process.ssim(imgs, y_imgs)
-
+    def imgs_valid_epoch(self, imgs, step):
         width_img = imgs.shape[1]
         height_img = imgs.shape[2]
         channel = imgs.shape[3]
 
         for i in range(imgs.shape[0]):
-            self.writer.add_scalar(tag='imgs_valid/index_%d_loss' % i, scalar_value=loss[i], global_step=step)
-            self.writer.add_scalar(tag='imgs_valid/index_%d_psnr' % i, scalar_value=psnr[i], global_step=step)
-            self.writer.add_scalar(tag='imgs_valid/index_%d_ssim' % i, scalar_value=ssim[i], global_step=step)
             for j in range(channel):
-                self.writer.add_image(tag='valid/index%d_chaneel%d_predict' % (i, j),
+                self.writer.add_image(tag='valid/index%d_predict_chaneel%d' % (i, j),
                                       img_tensor=img_process.normalize(imgs[i].reshape([width_img, height_img])),
                                       global_step=step, dataformats='HW')
 
@@ -151,10 +136,10 @@ class TBXWriter(object):
 
         for i in range(x_imgs.shape[0]):
             for j in range(channel_x):
-                self.writer.add_image(tag='valid/index%d_chaneel%d_data' % (i, j),
+                self.writer.add_image(tag='valid/index%d_data_chaneel%d' % (i, j),
                                       img_tensor=img_process.normalize(x_imgs[i, :, :, j].reshape([width_img, height_img])),
                                       global_step=0, dataformats='HW')
             for j in range(channel_y):
-                self.writer.add_image(tag='valid/index%d_chaneel%d_label' % (i, j),
+                self.writer.add_image(tag='valid/index%d_label_chaneel%d' % (i, j),
                                       img_tensor=img_process.normalize(y_imgs[i, :, :, j].reshape([width_img, height_img])),
                                       global_step=0, dataformats='HW')
