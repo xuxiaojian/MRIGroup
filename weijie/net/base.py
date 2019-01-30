@@ -68,3 +68,6 @@ class BaseKaresNetwork(object):
 
         self.network.save_weights(model_path + 'final_weight.h5')
         self.network.save(model_path + 'final_model.h5')
+
+    def predict(self, x):
+        return self.network.predict(x)

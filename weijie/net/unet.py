@@ -10,6 +10,24 @@ class KerasNetwork(BaseKaresNetwork):
     def __init__(self):
         super().__init__(config_name='unet_')
 
+    def _get_loss(self):
+        import tensorflow as tf
+
+        def total_variation_loss(y_true, y_pred):
+            l2_loss = tf.losses.mean_squared_error(y_pred, y_true)
+            tv_true_diff1 = y_true[:, 1:, :-1, :] - y_true[:, :-1, :-1, :]
+            tv_true_diff2 = y_true[:, :-1, 1:, :] - y_true[:, :-1, :-1, :]
+            tv_true = tf.abs(tv_true_diff1) + tf.abs(tv_true_diff2)
+
+            tv_pre_diff1 = y_pred[:, 1:, :-1, :] - y_pred[:, :-1, :-1, :]
+            tv_pre_diff2 = y_pred[:, :-1, 1:, :] - y_pred[:, :-1, :-1, :]
+            tv_pre = tf.abs(tv_pre_diff1) + tf.abs(tv_pre_diff2)
+
+            tv_loss = tf.losses.mean_squared_error(tv_pre, tv_true)
+            return l2_loss + 0.5*tv_loss
+
+        return total_variation_loss
+
     def set_train_imgs(self):
         x_train, y_train, x_train_imgs, y_train_imgs = data_loader.mat2numpy(
             self.FLAGS_DICT['root_path'], self.FLAGS_DICT['dataset_type'],

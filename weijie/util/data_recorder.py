@@ -45,8 +45,8 @@ class KearsCallback(keras.callbacks.Callback):
         imgs_predict_train = self.model.predict(self.imgs_data_train)
         imgs_predict_valid = self.model.predict(self.imgs_data_valid)
 
-        self.writer.train_epoch(loss=logs['loss'], psnr=logs['psnr_metrics'], ssim=logs['psnr_metrics'], step=self.step)
-        self.writer.valid_epoch(loss=logs['val_loss'], psnr=logs['val_psnr_metrics'], ssim=logs['val_psnr_metrics'],
+        self.writer.train_epoch(loss=logs['loss'], psnr=logs['psnr_metrics'], ssim=logs['ssim_metrics'], step=self.step)
+        self.writer.valid_epoch(loss=logs['val_loss'], psnr=logs['val_psnr_metrics'], ssim=logs['val_ssim_metrics'],
                                 step=self.step)
 
         self.writer.imgs_train_epoch(imgs_predict_train, self.imgs_label_train, step=self.step)
@@ -55,7 +55,7 @@ class KearsCallback(keras.callbacks.Callback):
             sio.savemat(self.val_path + 'epoch_%d.mat' % (epoch + 1), {'predict': imgs_predict_valid})
 
     def on_batch_end(self, batch, logs=None):
-        self.writer.train_batch(loss=logs['loss'], psnr=logs['psnr_metrics'], ssim=logs['psnr_metrics'], step=self.step)
+        self.writer.train_batch(loss=logs['loss'], psnr=logs['psnr_metrics'], ssim=logs['ssim_metrics'], step=self.step)
         self.step = self.step + 1
 
     def on_train_begin(self, logs=None):

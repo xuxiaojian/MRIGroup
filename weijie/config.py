@@ -11,10 +11,10 @@ user_path = '/export/project/gan.weijie/'
 # ###############################
 #       USER DEFINE PAREMETERS
 # ###############################
-tf.flags.DEFINE_string('gpu_index', '1,2,3', 'Choice what GPUs tf can use')
+tf.flags.DEFINE_string('gpu_index', '0, 1, 3', 'Choice what GPUs tf can use')
 tf.flags.DEFINE_string('network', 'sr', '')
 tf.flags.DEFINE_string('mode', 'train', '')
-tf.flags.DEFINE_string('output_path', user_path + '/experiment/jan25/temp/', '')
+tf.flags.DEFINE_string('output_path', user_path + '/experiment/jan29/temp/', '')
 
 tf.flags.DEFINE_bool('debug', False, '')
 # ###############################
@@ -24,7 +24,7 @@ tf.flags.DEFINE_string('root_path', user_path + 'data/', '')
 tf.flags.DEFINE_string('dataset_type', 'mri_healthy_liver', '')
 
 tf.flags.DEFINE_list('index_valid_mat', [9], '')
-tf.flags.DEFINE_list('index_valid_images', [15, 30, 35], '')
+tf.flags.DEFINE_list('index_valid_images', [15, 30], '')
 
 # ###############################
 #       UNET
@@ -32,14 +32,14 @@ tf.flags.DEFINE_list('index_valid_images', [15, 30, 35], '')
 config_name = 'unet_'
 
 # DATA RELEVANT
-tf.flags.DEFINE_list(config_name + 'index_train_mat', [1, 2, 3, 4], '')
+tf.flags.DEFINE_list(config_name + 'index_train_mat', [1], '')
 tf.flags.DEFINE_list(config_name + 'index_train_images', [15], '')
 
 # TRANING RELEVANT
 tf.flags.DEFINE_integer(config_name + 'batch_size', 2, '')
-tf.flags.DEFINE_integer(config_name + 'epoch', 300, '')
-tf.flags.DEFINE_integer(config_name + 'epoch_save_model', 50, '')
-tf.flags.DEFINE_integer(config_name + 'epoch_save_val', 10, '')
+tf.flags.DEFINE_integer(config_name + 'epoch', 5000, '')
+tf.flags.DEFINE_integer(config_name + 'epoch_save_model', 500, '')
+tf.flags.DEFINE_integer(config_name + 'epoch_save_val', 100, '')
 tf.flags.DEFINE_float(config_name + 'learning_rate', 0.001, '')
 
 # NETWORK RELEVANT
@@ -59,7 +59,7 @@ config_name = 'sr_'
 
 # DATA RELEVANT
 tf.flags.DEFINE_string(config_name + 'unet_model_path',
-                       user_path + '/experiment/jan24/unet_1to4liver_droup0.9_large_net/' + 'model/final_weight.h5', '')
+                       user_path + '/experiment/jan26/unet_all_index1to4/' + 'model/final_weight.h5', '')
 
 tf.flags.DEFINE_list(config_name + 'index_train_mat', [5, 6, 7, 8], '')
 tf.flags.DEFINE_list(config_name + 'index_train_images', [15], '')
@@ -68,7 +68,7 @@ tf.flags.DEFINE_integer(config_name + 'crop_window_size', 60, '')
 tf.flags.DEFINE_integer(config_name + 'crop_step', 20, '')
 
 # TRANING RELEVANT
-tf.flags.DEFINE_integer(config_name + 'batch_size', 128, '')
+tf.flags.DEFINE_integer(config_name + 'batch_size', 64, '')
 tf.flags.DEFINE_integer(config_name + 'epoch', 300, '')
 tf.flags.DEFINE_integer(config_name + 'epoch_save_model', 50, '')
 tf.flags.DEFINE_integer(config_name + 'epoch_save_val', 10, '')
