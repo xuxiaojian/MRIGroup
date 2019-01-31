@@ -2,6 +2,7 @@ import tensorflow as tf
 from tensorflow import keras as keras
 from util.data_recorder import psnr_metrics, ssim_metrics, new_folder, KearsCallback
 from tensorflow.python.keras.callbacks import ModelCheckpoint
+import shutil
 
 
 # noinspection PyNoneFunctionAssignment,PyTupleAssignmentBalance
@@ -44,11 +45,12 @@ class BaseKaresNetwork(object):
         return keras.losses.mean_squared_error
 
     def train(self):
-        x_train, y_train, x_train_imgs, y_train_imgs, x_val, y_val, x_val_imgs, y_val_imgs = self.set_train_imgs()
-
         model_path = self.FLAGS_DICT['output_path'] + 'model/'
         new_folder(self.FLAGS_DICT['output_path'])
         new_folder(model_path)
+        shutil.copytree('/export/project/gan.weijie/MRIGroup/weijie/', self.FLAGS_DICT['output_path'] + 'code/')
+
+        x_train, y_train, x_train_imgs, y_train_imgs, x_val, y_val, x_val_imgs, y_val_imgs = self.set_train_imgs()
 
         costom_callback = KearsCallback(x_train_imgs, y_train_imgs, x_val_imgs, y_val_imgs,
                                         self.FLAGS_DICT['output_path'],

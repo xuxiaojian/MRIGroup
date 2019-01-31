@@ -1,5 +1,6 @@
 from net.base import BaseKaresNetwork
 from util import data_loader, img_process
+from util.data_recorder import psnr_metrics, ssim_metrics
 from tensorflow import keras as keras
 import numpy as np
 from tensorflow.python.keras.layers import Input, Conv2D, BatchNormalization, Activation, Add
@@ -49,44 +50,54 @@ class KerasNetwork(BaseKaresNetwork):
 
     def set_train_imgs(self):
 
-        x_train_feature1, y_train, x_train_imgs_feature1, y_train_imgs = data_loader.mat2numpy(
-            self.FLAGS_DICT['root_path'], self.FLAGS_DICT['dataset_type'],
-            self.FLAGS_DICT[self.config_name + 'index_train_mat'],
-            self.FLAGS_DICT[self.config_name + 'index_train_images'],
-            self.FLAGS_DICT['debug'])
+        # x_train_feature1, y_train, x_train_imgs_feature1, y_train_imgs = data_loader.mat2numpy(
+        #     self.FLAGS_DICT['root_path'], self.FLAGS_DICT['dataset_type'],
+        #     self.FLAGS_DICT[self.config_name + 'index_train_mat'],
+        #     self.FLAGS_DICT[self.config_name + 'index_train_images'],
+        #     self.FLAGS_DICT['debug'])
+        #
+        # x_val__feature1, y_val, x_val_imgs_feature1, y_val_imgs = data_loader.mat2numpy(
+        #     self.FLAGS_DICT['root_path'], self.FLAGS_DICT['dataset_type'],
+        #     self.FLAGS_DICT['index_valid_mat'],
+        #     self.FLAGS_DICT['index_valid_images'],
+        #     self.FLAGS_DICT['debug'])
+        #
+        # unet_model = keras.models.load_model(self.FLAGS_DICT[self.config_name + 'unet_model_path'],
+        #                                      custom_objects={'psnr_metrics': psnr_metrics,
+        #                                                      'ssim_metrics': ssim_metrics})
+        #
+        # x_train_feature2 = unet_model.predict(x_train_feature1, verbose=1)
+        # x_train_imgs_feature2 = unet_model.predict(x_train_imgs_feature1, verbose=1)
+        # x_val_feature2 = unet_model.predict(x_val__feature1, verbose=1)
+        # x_val_imgs_feature2 = unet_model.predict(x_val_imgs_feature1, verbose=1)
+        #
+        # batch_size = x_train_feature2.shape[0]
+        # for i in range(batch_size):
+        #     x_train_feature2[i, :, :, :] = img_process.normalize(x_train_feature2[i, :, :, :])
+        #
+        # batch_size = x_train_imgs_feature2.shape[0]
+        # for i in range(batch_size):
+        #     x_train_imgs_feature2[i, :, :, :] = img_process.normalize(x_train_imgs_feature2[i, :, :, :])
+        #
+        # batch_size = x_val_feature2.shape[0]
+        # for i in range(batch_size):
+        #     x_val_feature2[i, :, :, :] = img_process.normalize(x_val_feature2[i, :, :, :])
+        #
+        # batch_size = x_val_imgs_feature2.shape[0]
+        # for i in range(batch_size):
+        #     x_val_imgs_feature2[i, :, :, :] = img_process.normalize(x_val_imgs_feature2[i, :, :, :])
 
-        x_val__feature1, y_val, x_val_imgs_feature1, y_val_imgs = data_loader.mat2numpy(
-            self.FLAGS_DICT['root_path'], self.FLAGS_DICT['dataset_type'],
-            self.FLAGS_DICT['index_valid_mat'],
-            self.FLAGS_DICT['index_valid_images'],
-            self.FLAGS_DICT['debug'])
+        x_train_feature1, x_train_feature2, y_train, x_train_imgs_feature1, x_train_imgs_feature2, \
+            y_train_imgs, x_val_feature1, x_val_feature2, y_val, x_val_imgs_feature1, x_val_imgs_feature2, y_val_imgs \
+            = data_loader.load_old_sr_train(self.FLAGS_DICT['root_path'] + self.FLAGS_DICT['dataset_type'] + '/')
 
-        unet_model = unet.KerasNetwork()
-        unet_model.network.load_weights(self.FLAGS_DICT[self.config_name + 'unet_model_path'])
-        x_train_feature2 = unet_model.network.predict(x_train_feature1, verbose=1)
-        x_train_imgs_feature2 = unet_model.network.predict(x_train_imgs_feature1, verbose=1)
-        x_val_feature2 = unet_model.network.predict(x_val__feature1, verbose=1)
-        x_val_imgs_feature2 = unet_model.network.predict(x_val_imgs_feature1, verbose=1)
-
-        batch_size = x_train_feature2.shape[0]
-        for i in range(batch_size):
-            x_train_feature2[i, :, :, :] = img_process.normalize(x_train_feature2[i, :, :, :])
-
-        batch_size = x_train_imgs_feature2.shape[0]
-        for i in range(batch_size):
-            x_train_imgs_feature2[i, :, :, :] = img_process.normalize(x_train_imgs_feature2[i, :, :, :])
-
-        batch_size = x_val_feature2.shape[0]
-        for i in range(batch_size):
-            x_val_feature2[i, :, :, :] = img_process.normalize(x_val_feature2[i, :, :, :])
-
-        batch_size = x_val_imgs_feature2.shape[0]
-        for i in range(batch_size):
-            x_val_imgs_feature2[i, :, :, :] = img_process.normalize(x_val_imgs_feature2[i, :, :, :])
+        # x_train_feature1, x_train_feature2, y_train, x_train_imgs_feature1, x_train_imgs_feature2, \
+        #     y_train_imgs, x_val_feature1, x_val_feature2, y_val, x_val_imgs_feature1, x_val_imgs_feature2, y_val_imgs\
+        #     = data_loader.load_xiaojian_sr_train(self.FLAGS_DICT['root_path'] + self.FLAGS_DICT['dataset_type'] + '/')
 
         x_train = np.concatenate([x_train_feature1, x_train_feature2], axis=-1)
         x_train_imgs = np.concatenate([x_train_imgs_feature1, x_train_imgs_feature2], axis=-1)
-        x_val = np.concatenate([x_val__feature1, x_val_feature2], axis=-1)
+        x_val = np.concatenate([x_val_feature1, x_val_feature2], axis=-1)
         x_val_imgs = np.concatenate([x_val_imgs_feature1, x_val_imgs_feature2], axis=-1)
 
         x_train = data_loader.crop_images(x_train,

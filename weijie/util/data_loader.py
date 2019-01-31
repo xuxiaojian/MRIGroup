@@ -4,6 +4,143 @@ from util.img_process import normalize
 from skimage.util import view_as_windows
 
 
+def load_old_unet_train(root_path):
+    root_path = root_path + 'old/'
+
+    # ####################
+    img = sio.loadmat(root_path + 'unet_train.mat')
+    x_train = img['x_unet_train']
+    y_train = img['y_unet_train']
+
+    batch_size, width, height = x_train.shape
+    for i in range(batch_size):
+        x_train[i] = normalize(x_train[i])
+        y_train[i] = normalize(y_train[i])
+
+    x_train.shape = [batch_size, width, height, 1]
+    y_train.shape = [batch_size, width, height, 1]
+
+    x_train_imgs = x_train[2].reshape([1, width, height, 1])
+    y_train_imgs = y_train[2].reshape([1, width, height, 1])
+
+    # ####################
+    img = sio.loadmat(root_path + 'valid.mat')
+    x_val = img['x_noised_valid']
+    y_val = img['y_valid']
+
+    batch_size, width, height = x_val.shape
+    for i in range(batch_size):
+        x_val[i] = normalize(x_val[i])
+        y_val[i] = normalize(y_val[i])
+
+    x_val.shape = [batch_size, width, height, 1]
+    y_val.shape = [batch_size, width, height, 1]
+
+    x_val_imgs = x_val[:2]
+    y_val_imgs = y_val[:2]
+
+    return x_train, y_train, x_train_imgs, y_train_imgs, x_val, y_val, x_val_imgs, y_val_imgs
+
+
+def load_old_sr_train(root_path):
+    root_path = root_path + 'old/'
+
+    # ####################
+    img = sio.loadmat(root_path + 'sr_train.mat')
+    x_train_feature1 = img['x_noised']
+    x_train_feature2 = img['x_sr_train']
+    y_train = img['y_sr_train']
+
+    batch_size, width, height = x_train_feature1.shape
+    for i in range(batch_size):
+        x_train_feature1[i] = normalize(x_train_feature1[i])
+        x_train_feature2[i] = normalize(x_train_feature2[i])
+        y_train[i] = normalize(y_train[i])
+
+    x_train_feature1.shape = [batch_size, width, height, 1]
+    x_train_feature2.shape = [batch_size, width, height, 1]
+    y_train.shape = [batch_size, width, height, 1]
+
+    x_train_imgs_feature1 = x_train_feature1[2].reshape([1, width, height, 1])
+    x_train_imgs_feature2 = x_train_feature2[2].reshape([1, width, height, 1])
+    y_train_imgs = y_train[2].reshape([1, width, height, 1])
+
+    # ####################
+    img = sio.loadmat(root_path + 'valid.mat')
+    x_val_feature1 = img['x_noised_valid']
+    x_val_feature2 = img['x_sr_valid']
+    y_val = img['y_valid']
+
+    batch_size, width, height = x_val_feature1.shape
+    for i in range(batch_size):
+        x_val_feature1[i] = normalize(x_val_feature1[i])
+        x_val_feature2[i] = normalize(x_val_feature2[i])
+        y_val[i] = normalize(y_val[i])
+
+    x_val_feature1.shape = [batch_size, width, height, 1]
+    x_val_feature2.shape = [batch_size, width, height, 1]
+    y_val.shape = [batch_size, width, height, 1]
+
+    x_val_imgs_feature1 = x_val_feature1[:2]
+    x_val_imgs_feature2 = x_val_feature2[:2]
+    y_val_imgs = y_val[:2]
+
+    return x_train_feature1, x_train_feature2, y_train, x_train_imgs_feature1, x_train_imgs_feature2, \
+        y_train_imgs, x_val_feature1, x_val_feature2, y_val, x_val_imgs_feature1, x_val_imgs_feature2, y_val_imgs
+
+
+def load_xiaojian_sr_train(root_path):
+    # Jan 30
+    root_path = root_path + 'xiaojian_jan30/'
+
+    # ####################
+    img = sio.loadmat(root_path + 'test_x.mat')
+    x_train_feature1 = img['img']
+    img = sio.loadmat(root_path + 'test_y.mat')
+    y_train = img['img']
+    img = sio.loadmat(root_path + 'test_premat.mat')
+    x_train_feature2 = img['img']
+
+    batch_size, width, height, chaneel = x_train_feature1.shape
+    for i in range(batch_size):
+        x_train_feature1[i] = normalize(x_train_feature1[i])
+        x_train_feature2[i] = normalize(x_train_feature2[i])
+        y_train[i] = normalize(y_train[i])
+
+    x_train_feature1.shape = [batch_size, width, height, 1]
+    x_train_feature2.shape = [batch_size, width, height, 1]
+    y_train.shape = [batch_size, width, height, 1]
+
+    x_train_imgs_feature1 = x_train_feature1[2].reshape([1, width, height, 1])
+    x_train_imgs_feature2 = x_train_feature2[2].reshape([1, width, height, 1])
+    y_train_imgs = y_train[2].reshape([1, width, height, 1])
+
+    # ####################
+    img = sio.loadmat(root_path + 'val_x.mat')
+    x_val_feature1 = img['img']
+    img = sio.loadmat(root_path + 'val_y.mat')
+    y_val = img['img']
+    img = sio.loadmat(root_path + 'val_premat.mat')
+    x_val_feature2 = img['img']
+
+    batch_size, width, height, chaneel = x_val_feature1.shape
+    for i in range(batch_size):
+        x_val_feature1[i] = normalize(x_val_feature1[i])
+        x_val_feature2[i] = normalize(x_val_feature2[i])
+        y_val[i] = normalize(y_val[i])
+
+    x_val_feature1.shape = [batch_size, width, height, 1]
+    x_val_feature2.shape = [batch_size, width, height, 1]
+    y_val.shape = [batch_size, width, height, 1]
+
+    x_val_imgs_feature1 = x_val_feature1[15:16]
+    x_val_imgs_feature2 = x_val_feature2[15:16]
+    y_val_imgs = y_val[15:16]
+
+    return x_train_feature1, x_train_feature2, y_train, x_train_imgs_feature1, x_train_imgs_feature2, \
+        y_train_imgs, x_val_feature1, x_val_feature2, y_val, x_val_imgs_feature1, x_val_imgs_feature2, y_val_imgs
+
+
 # noinspection PyUnresolvedReferences
 def mat2numpy(root_path, type_, index_mat, index_images, debug=False):
     ####################################################
