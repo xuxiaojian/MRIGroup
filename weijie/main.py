@@ -7,4 +7,4 @@ network_dict = {
     'sr': sr.KerasNetwork,
     }
 
-network_dict[tf.flags.FLAGS.network]()(tf.flags.FLAGS.mode)
+network_dict[tf.flags.FLAGS.global_network]()(tf.flags.FLAGS.global_mode)

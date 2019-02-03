@@ -1,6 +1,5 @@
 import numpy as np
 import scipy.io as sio
-from util.img_process import normalize
 from skimage.util import view_as_windows
 
 
@@ -211,3 +210,12 @@ def crop_images(imgs, window_size, step):
     crop_imgs.shape = [crop_num_width * crop_num_height * batch_size, window_size, window_size, channel]
 
     return crop_imgs
+
+
+def normalize(imgs):
+
+    # 0-1 Normalization
+    imgs -= np.amin(imgs)
+    imgs /= np.amax(imgs)
+
+    return imgs
