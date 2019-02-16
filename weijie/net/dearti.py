@@ -1,9 +1,87 @@
 from tensorflow.python.keras import Model
 from tensorflow.python.keras.layers import Input, Conv2D, BatchNormalization, Dropout, \
     MaxPool2D, Conv2DTranspose, concatenate, Activation
-from data import loader
+from data import loader, recorder
 from net.base import BaseKaresNetwork
 import tensorflow as tf
+from net.scadec.unet_bn import Unet_bn
+from net.scadec.train import Trainer_bn
+from net.scadec.image_util import SimpleDataProvider
+import shutil
+import numpy as np
+
+
+# noinspection PyProtectedMember
+class ScadecNet(object):
+
+    def __init__(self, path, config):
+        self.path = path
+        self.config = config
+
+        self.net = self.get_network()
+
+    def train(self):
+
+        x_train, y_train, x_imgs_train, y_imgs_train, x_valid, y_valid, x_imgs_valid, y_imgs_valid = self.get_data()
+
+        config_info = recorder.config2mdtable(self.config._sections['global'], 'global')
+        config_info = config_info + recorder.config2mdtable(self.config._sections['scadec'], 'scadec')
+
+        data_imgs = [x_imgs_train, y_imgs_train]
+        valid_imgs = [x_imgs_valid, y_imgs_valid]
+        data_provider = SimpleDataProvider(x_train, y_train)
+        valid_provider = SimpleDataProvider(x_valid, y_valid)
+
+        batch_size = int(self.config['scadec']['batch_size'])  # batch size for training
+        valid_size = int(self.config['scadec']['valid_size'])  # batch size for validating
+
+        # optional args
+        opt_kwargs = {
+            'learning_rate': float(self.config['scadec']['learning_rate'])
+        }
+        dropout = float(self.config['scadec']['dropout'])
+
+        training_iters = int(self.config['scadec']['training_iters'])
+        train_epoch = int(self.config['scadec']['train_epoch'])
+        save_epoch = int(self.config['scadec']['save_epoch'])
+
+        trainer = Trainer_bn(self.net, batch_size=batch_size, optimizer="adam", opt_kwargs=opt_kwargs)
+        trainer.train(data_provider=data_provider,
+                      valid_provider=valid_provider,
+                      data_imgs=data_imgs,
+                      valid_imgs=valid_imgs,
+                      output_path=self.path,
+                      valid_size=valid_size,
+                      training_iters=training_iters,
+                      epochs=train_epoch,
+                      save_epoch=save_epoch,
+                      dropout=dropout,
+                      config_info=config_info)
+
+    def get_data(self):
+        x_train, y_train, x_imgs_train, y_imgs_train = loader.mat2numpy(
+            self.config['global']['data_path'], self.config['global']['data_type'],
+            np.fromstring(self.config['scadec']['train_index_mat'],dtype=int, sep=','),
+            np.fromstring(self.config['scadec']['train_index_images'], dtype=int, sep=','))
+
+        x_valid, y_valid, x_imgs_valid, y_imgs_valid = loader.mat2numpy(
+            self.config['global']['data_path'], self.config['global']['data_type'],
+            np.fromstring(self.config['scadec']['valid_index_mat'], dtype=int, sep=','),
+            np.fromstring(self.config['scadec']['valid_index_images'], dtype=int, sep=','))
+
+        return x_train, y_train, x_imgs_train, y_imgs_train, x_valid, y_valid, x_imgs_valid, y_imgs_valid
+
+    def get_network(self):
+        kwargs = {
+            "layers": int(self.config['scadec']['layers']),  # how many resolution levels we want to have
+            "conv_times": int(self.config['scadec']['conv_times']),  # how many times we want to convolve in each level
+            "features_root": int(self.config['scadec']['features_root']),
+            "filter_size": int(self.config['scadec']['filter_size']),  # filter size used in convolution
+            "pool_size": int(self.config['scadec']['pool_size']),  # pooling size used in max-pooling
+            "summaries": False
+        }
+
+        return Unet_bn(img_channels=1, truth_channels=1, cost="total_variation", **kwargs)
 
 
 class KerasNetwork(BaseKaresNetwork):

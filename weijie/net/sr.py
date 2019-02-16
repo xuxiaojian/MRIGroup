@@ -65,8 +65,8 @@ class KerasNetwork(BaseKaresNetwork):
                 self.FLAGS_DICT['global_index_valid_images'],
                 self.FLAGS_DICT['global_debug'])
 
-            from net import unet
-            unet_model = unet.KerasNetwork()
+            from net import dearti
+            unet_model = dearti.KerasNetwork()
             unet_model.network.load_weights(self.FLAGS_DICT[self.config_name + 'unet_model_path'])
 
             x_train_feature2 = unet_model.network.predict(x_train_feature1, verbose=1)
@@ -111,10 +111,20 @@ class KerasNetwork(BaseKaresNetwork):
             return x_train_feature1, x_train_feature2, y_train, x_train_imgs_feature1, x_train_imgs_feature2, \
                 y_train_imgs, x_val_feature1, x_val_feature2, y_val, x_val_imgs_feature1, x_val_imgs_feature2, y_val_imgs
 
+        def load_xiaojian_sr_train_feb14():
+            x_train_feature1, x_train_feature2, y_train, x_train_imgs_feature1, x_train_imgs_feature2, \
+            y_train_imgs, x_val_feature1, x_val_feature2, y_val, x_val_imgs_feature1, x_val_imgs_feature2, \
+            y_val_imgs = loader.load_xiaojian_sr_train_feb14(self.FLAGS_DICT['global_root_path'] +
+                                                       self.FLAGS_DICT['global_dataset_type'] + '/')
+
+            return x_train_feature1, x_train_feature2, y_train, x_train_imgs_feature1, x_train_imgs_feature2, \
+                   y_train_imgs, x_val_feature1, x_val_feature2, y_val, x_val_imgs_feature1, x_val_imgs_feature2, y_val_imgs
+
         data_types = {
             '0': source_mat_file,
             '1': old_liver_train_mat,
             '2': xiaojian_liver_train_mat,
+            '3': load_xiaojian_sr_train_feb14,
         }
 
         x_train_feature1, x_train_feature2, y_train, x_train_imgs_feature1, x_train_imgs_feature2, \

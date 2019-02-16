@@ -7,6 +7,18 @@ from data.loader import normalize
 import scipy.io as sio
 
 
+def config2mdtable(config_dict, name_section):
+    info = '## ' + name_section + '\n'
+    info = info + '|  Key  |  Value |\n|:----:|:---:|\n'
+
+    for i in config_dict.keys():
+        info = info + '|' + i + '|' + config_dict[i] + '|\n'
+
+    info = info + '\n'
+
+    return info
+
+
 # Clean output folder
 def new_folder(path):
     if os.path.exists(path):

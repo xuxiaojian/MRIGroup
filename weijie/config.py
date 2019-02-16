@@ -16,7 +16,7 @@ config_name = 'global_'
 tf.flags.DEFINE_string(config_name + 'gpu_index', '3', 'Choice what GPUs tf can use')
 tf.flags.DEFINE_string(config_name + 'network', 'sr', '')
 tf.flags.DEFINE_string(config_name + 'mode', 'train', '')
-tf.flags.DEFINE_string(config_name + 'output_path', user_path + '/experiment/feb2/sr_ver1/', '')
+tf.flags.DEFINE_string(config_name + 'output_path', user_path + '/experiment/feb14/sr_ver1/', '')
 
 tf.flags.DEFINE_bool(config_name + 'debug', False, '')
 
@@ -25,6 +25,28 @@ tf.flags.DEFINE_string(config_name + 'dataset_type', 'mri_healthy_liver', '')
 
 tf.flags.DEFINE_list(config_name + 'index_valid_mat', [9], 'valid when data_type is 0')
 tf.flags.DEFINE_list(config_name + 'index_valid_images', [15, 30], 'valid when data_type is 0')
+
+# ###############################
+#       SCADEC
+# ###############################
+config_name = 'scadec_'
+
+# DATA RELEVANT
+tf.flags.DEFINE_list(config_name + 'index_train_mat', [1, 2, 3, 4, 5, 6, 7, 8], 'valid when data_type is 0')
+tf.flags.DEFINE_list(config_name + 'index_train_images', [15], 'valid when data_type is 0')
+
+# TRANING RELEVANT
+tf.flags.DEFINE_integer(config_name + 'batch_size', 4, '')
+tf.flags.DEFINE_integer(config_name + 'epoch', 30, '')
+tf.flags.DEFINE_integer(config_name + 'epoch_save', 100, '')
+tf.flags.DEFINE_float(config_name + 'learning_rate', 0.001, '')
+
+# NETWORK RELEVANT
+tf.flags.DEFINE_integer(config_name + 'level', 4, '')
+tf.flags.DEFINE_integer(config_name + 'root_filters', 32, '')
+tf.flags.DEFINE_float(config_name + 'dropout', 0.1, '')
+tf.flags.DEFINE_integer(config_name + 'kernel_size', 3, '')
+tf.flags.DEFINE_integer(config_name + 'conv_time', 2, '')
 
 # ###############################
 #       UNET
@@ -60,8 +82,6 @@ tf.flags.DEFINE_integer(config_name + 'root_filters', 32, '')
 tf.flags.DEFINE_float(config_name + 'dropout', 0.1, '')
 tf.flags.DEFINE_integer(config_name + 'kernel_size', 3, '')
 tf.flags.DEFINE_integer(config_name + 'conv_time', 2, '')
-# ###############################
-# ###############################
 
 # ###############################
 #       SUPER RESOLUTION
@@ -69,7 +89,7 @@ tf.flags.DEFINE_integer(config_name + 'conv_time', 2, '')
 config_name = 'sr_'
 
 # DATA RELEVANT
-tf.flags.DEFINE_string(config_name + 'data_type', '0',  'KEEP STRING FORMAT: '
+tf.flags.DEFINE_string(config_name + 'data_type', '3',  'KEEP STRING FORMAT: '
                                                         '0 means source mat file, '
                                                         '1 means old liver train mat file')
 

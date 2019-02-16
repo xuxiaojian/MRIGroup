@@ -3,6 +3,60 @@ import scipy.io as sio
 from skimage.util import view_as_windows
 
 
+def load_xiaojian_sr_train_feb14(root_path_):
+    # Jan 30
+    root_path = root_path_ + 'predictions/'
+
+    # ####################
+    img = sio.loadmat(root_path + 'val_x.mat')
+    x_train_feature1 = img['img']
+    img = sio.loadmat(root_path + 'val_y.mat')
+    y_train = img['img']
+    img = sio.loadmat(root_path + 'test1-8_premat.mat')
+    x_train_feature2 = img['img']
+
+    batch_size, width, height, chaneel = x_train_feature1.shape
+    for i in range(batch_size):
+        x_train_feature1[i] = normalize(x_train_feature1[i])
+        x_train_feature2[i] = normalize(x_train_feature2[i])
+        y_train[i] = normalize(y_train[i])
+
+    x_train_feature1.shape = [batch_size, width, height, 1]
+    x_train_feature2.shape = [batch_size, width, height, 1]
+    y_train.shape = [batch_size, width, height, 1]
+
+    x_train_imgs_feature1 = x_train_feature1[200].reshape([1, width, height, 1])
+    x_train_imgs_feature2 = x_train_feature2[200].reshape([1, width, height, 1])
+    y_train_imgs = y_train[200].reshape([1, width, height, 1])
+
+    root_path = root_path_ + 'predictions9/'
+
+    # ####################
+    img = sio.loadmat(root_path + 'val_x.mat')
+    x_val_feature1 = img['img']
+    img = sio.loadmat(root_path + 'val_y.mat')
+    y_val = img['img']
+    img = sio.loadmat(root_path + 'test9_premat.mat')
+    x_val_feature2 = img['img']
+
+    batch_size, width, height, chaneel = x_val_feature1.shape
+    for i in range(batch_size):
+        x_val_feature1[i] = normalize(x_val_feature1[i])
+        x_val_feature2[i] = normalize(x_val_feature2[i])
+        y_val[i] = normalize(y_val[i])
+
+    x_val_feature1.shape = [batch_size, width, height, 1]
+    x_val_feature2.shape = [batch_size, width, height, 1]
+    y_val.shape = [batch_size, width, height, 1]
+
+    x_val_imgs_feature1 = x_val_feature1[100:102]
+    x_val_imgs_feature2 = x_val_feature2[100:102]
+    y_val_imgs = y_val[100:102]
+
+    return x_train_feature1, x_train_feature2, y_train, x_train_imgs_feature1, x_train_imgs_feature2, \
+        y_train_imgs, x_val_feature1, x_val_feature2, y_val, x_val_imgs_feature1, x_val_imgs_feature2, y_val_imgs
+
+
 def load_old_unet_train(root_path):
     root_path = root_path + 'old/'
 
