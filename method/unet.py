@@ -71,3 +71,77 @@ class Net2D(TFBase):
         print("Filters: %d" % 1)
 
         return result
+
+
+class Net3D(TFBase):
+    def __init__(self, config):
+        self.config = config
+
+        super().__init__(input_shape=[None, 10, 320, 320, 1], output_shape=[None, 1, 320, 320, 1])
+        #  Shape = [Batch Depth X Y Channel]
+
+    def get_train_op(self):
+        return tf.train.AdamOptimizer(self.lr).minimize(self.loss)
+
+    def get_loss(self):
+        return tf.losses.mean_squared_error(self.y_output, self.y_gt)
+
+    def get_net_output(self):
+
+        def conv3d_bn_relu_dropout(input_, conv3d_kernel_size, conv3d_filters):
+            result_ = tf.layers.conv3d(inputs=input_, filters=conv3d_filters, kernel_size=conv3d_kernel_size,
+                                       padding='same')
+            result_ = tf.nn.relu(result_)
+
+            result_ = tf.layers.dropout(result_, rate=self.dropout_rate, training=self.dropout_training)
+            return result_
+
+        def conv3d_transpose_bn_relu_dropout(input_, conv3d_filters):
+            result_ = tf.layers.conv3d_transpose(inputs=input_, filters=conv3d_filters, kernel_size=(1, 2, 2),
+                                                 strides=(1, 2, 2), padding='same')
+            result_ = tf.nn.relu(result_)
+
+            result_ = tf.layers.dropout(result_, rate=self.dropout_rate, training=self.dropout_training)
+            return result_
+
+        conv_kernel_size = int(self.config['3d-unet']['conv_kernel_size'])
+        conv_filters_root = int(self.config['3d-unet']['conv_filters_root'])
+        conv_times = int(self.config['3d-unet']['conv_times'])
+        up_or_down_times = int(self.config['3d-unet']['up_or_down_times'])
+
+        layers_storage = []
+
+        # Build Network
+        result = conv3d_bn_relu_dropout(self.x, conv_kernel_size, conv_filters_root)
+        print("Filters: %d" % conv_filters_root)
+        print("Layer: ", result)
+
+        for layer in range(up_or_down_times):
+
+            conv_filters = 2 ** layer * conv_filters_root
+            print("Filters: %d" % conv_filters)
+
+            for conv_iter in range(0, conv_times):
+                result = conv3d_bn_relu_dropout(result, conv_kernel_size, conv_filters)
+
+            layers_storage.append(result)
+            result = tf.layers.max_pooling3d(result, (1, 2, 2), (1, 2, 2))
+            print("Layer: ", result)
+
+        for layer in range(up_or_down_times - 1, -1, -1):
+
+            conv_filters = 2 ** layer * conv_filters_root
+            print("Filters: %d" % conv_filters)
+
+            result = conv3d_transpose_bn_relu_dropout(result, conv_filters)
+            result = tf.concat([result, layers_storage[layer]], -1)
+
+            for conv_iter in range(0, conv_times):
+                result = conv3d_bn_relu_dropout(result, conv_kernel_size, conv_filters)
+            print("Layer: ", result)
+
+        result = tf.layers.conv3d(result, 1, 1, padding='same')
+        print("Filters: %d" % 1)
+        print("Layer: ", result)
+
+        return result

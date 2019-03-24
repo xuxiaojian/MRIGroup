@@ -94,4 +94,35 @@ def mri(root_path, type_, data_index, patch_size, patch_step, is_patch=False, im
 
         return data, label, data_imgs, label_imgs
 
+    if type_ == 'original-structural_patch':
+
+        for i in range(data_index.__len__()):
+            data[i] = normalization(np.expand_dims(data[i], axis=-1))
+            label[i] = normalization(np.expand_dims(label[i], axis=-1))
+
+            data_temp = np.zeros(shape=[96, 10, 320, 320, 1])
+            label_temp = np.zeros(shape=[96, 1, 320, 320, 1])
+
+            for data_index in range(96):
+                for patch_index in range(10):
+                    # print(data_index + 96*patch_index)
+                    data_temp[data_index, patch_index, :, :, :] = data[i][data_index + 96*patch_index, :, :, :]
+
+                label_temp[data_index, :, :, :, :] = label[i][data_index, :, :, :]
+
+            data[i] = data_temp
+            label[i] = label_temp
+
+        data = np.concatenate(data, axis=0)
+        label = np.concatenate(label, axis=0)
+
+        for i in img_index:
+            data_imgs.append(data[i])
+            label_imgs.append(label[i])
+
+        data_imgs = np.stack(data_imgs, axis=0)
+        label_imgs = np.stack(label_imgs, axis=0)
+
+        return data, label, data_imgs, label_imgs
+
     return 0

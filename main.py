@@ -1,6 +1,6 @@
 import os
 import configparser
-from method.unet import Net2D
+from method.unet import Net2D, Net3D
 from data import loader
 import numpy as np
 from method.tfbase import config_to_markdown_table, TFTrainer
@@ -15,6 +15,11 @@ config.read('config.ini')
 # Set GPU index
 ######################
 os.environ["CUDA_VISIBLE_DEVICES"] = config['global']['gpu_index']
+
+net_dict = {
+    "2d-unet": Net2D,
+    "3d-unet": Net3D,
+}
 
 config_info = config_to_markdown_table(config._sections['global'], 'global')
 config_info = config_info + config_to_markdown_table(config._sections['data'], 'data')
@@ -42,16 +47,10 @@ valid_x, valid_y, valid_x_imgs, valid_y_imgs = loader.mri(root_path=root_path, t
                                                           patch_size=patch_size, patch_step=patch_step,
                                                           is_patch=is_patch, img_index=img_index)
 
-print("train_x: ", train_x.shape)
-print("train_y: ", train_y.shape)
-print("train_x_imgs: ", train_x_imgs.shape)
-print("train_y_imgs: ", train_y_imgs.shape)
-print("valid_x: ", valid_x.shape)
-print("valid_y: ", valid_y.shape)
-print("valid_x_imgs: ", valid_x_imgs.shape)
-print("valid_y_imgs: ", valid_y_imgs.shape)
+print("Training Data Shape: ", train_x.shape, "Training Label Shape: ", train_y.shape)
+print("Validation Data Shape: ", valid_x.shape, "Validation Label Shape: ", valid_y.shape)
 
-net = Net2D(config)
+net = net_dict[config['global']['method']](config)
 
 lr = float(config['train']['lr'])
 dropout_rate = float(config['train']['dropout_rate'])

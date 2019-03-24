@@ -337,58 +337,40 @@ class TBXWriter(object):
         imgs /= np.amax(imgs)
         return imgs
 
-    def imgs_train_epoch(self, imgs, step):
-        width_img = imgs.shape[1]
-        height_img = imgs.shape[2]
-        channel = imgs.shape[3]
+    def show_img(self, imgs, tag, step):
+        shape = imgs.shape.__len__()
 
+        def hw():
+            self.writer.add_image(tag=tag, img_tensor=imgs, global_step=step, dataformats='HW')
+
+        def hwc():
+            self.writer.add_image(tag=tag, img_tensor=imgs, global_step=step, dataformats='HWC')
+
+        def nhwc():
+            self.writer.add_images(tag=tag, img_tensor=imgs, global_step=step, dataformats='NHWC')
+
+        shape_dict = {
+            2: hw,
+            3: hwc,
+            4: nhwc,
+        }
+
+        shape_dict[shape]()
+
+    def imgs_train_epoch(self, imgs, step):
         for i in range(imgs.shape[0]):
-            for j in range(channel):
-                self.writer.add_image(tag='train/index%d_pre_channel%d' % (i, j),
-                                      img_tensor=self.img_preprocess(imgs[i].reshape([width_img, height_img])),
-                                      global_step=step, dataformats='HW')
+            self.show_img(imgs=imgs[i], tag='train/index%d_pre' % i, step=step)
 
     def imgs_train_init(self, x_imgs, y_imgs):
-        width_img = x_imgs.shape[1]
-        height_img = x_imgs.shape[2]
-
-        channel_x = x_imgs.shape[3]
-        channel_y = y_imgs.shape[3]
-
         for i in range(x_imgs.shape[0]):
-            for j in range(channel_x):
-                self.writer.add_image(tag='train/index%d_x_channel%d' % (i, j),
-                                      img_tensor=self.img_preprocess(x_imgs[i, :, :, j].reshape([width_img, height_img])),
-                                      global_step=0, dataformats='HW')
-            for j in range(channel_y):
-                self.writer.add_image(tag='train/index%d_y_channel%d' % (i, j),
-                                      img_tensor=self.img_preprocess(y_imgs[i, :, :, j].reshape([width_img, height_img])),
-                                      global_step=0, dataformats='HW')
+            self.show_img(imgs=x_imgs[i], tag='train/index%d_data' % i, step=0)
+            self.show_img(imgs=y_imgs[i], tag='train/index%d_label' % i, step=0)
 
     def imgs_valid_epoch(self, imgs, step):
-        width_img = imgs.shape[1]
-        height_img = imgs.shape[2]
-        channel = imgs.shape[3]
-
         for i in range(imgs.shape[0]):
-            for j in range(channel):
-                self.writer.add_image(tag='valid/index%d_pre_channel%d' % (i, j),
-                                      img_tensor=self.img_preprocess(imgs[i].reshape([width_img, height_img])),
-                                      global_step=step, dataformats='HW')
+            self.show_img(imgs=imgs[i], tag='valid/index%d_pre' % i, step=step)
 
     def imgs_valid_init(self, x_imgs, y_imgs):
-        width_img = x_imgs.shape[1]
-        height_img = x_imgs.shape[2]
-
-        channel_x = x_imgs.shape[3]
-        channel_y = y_imgs.shape[3]
-
         for i in range(x_imgs.shape[0]):
-            for j in range(channel_x):
-                self.writer.add_image(tag='valid/index%d_x_channel%d' % (i, j),
-                                      img_tensor=self.img_preprocess(x_imgs[i, :, :, j].reshape([width_img, height_img])),
-                                      global_step=0, dataformats='HW')
-            for j in range(channel_y):
-                self.writer.add_image(tag='valid/index%d_y_channel%d' % (i, j),
-                                      img_tensor=self.img_preprocess(y_imgs[i, :, :, j].reshape([width_img, height_img])),
-                                      global_step=0, dataformats='HW')
+            self.show_img(imgs=x_imgs[i], tag='valid/index%d_data' % i, step=0)
+            self.show_img(imgs=y_imgs[i], tag='valid/index%d_label' % i, step=0)
