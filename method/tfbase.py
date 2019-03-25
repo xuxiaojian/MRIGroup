@@ -4,6 +4,7 @@ import os
 import shutil
 from tensorboardX import SummaryWriter
 import scipy.io as sio
+from skimage.color import gray2rgb
 
 
 # noinspection PyMethodMayBeStatic
@@ -12,12 +13,6 @@ class TFBase(object):
     # The following functions should be re-wrote
     #################################
     def get_net_output(self):
-        return 0
-
-    def get_train_op(self):
-        return 0
-
-    def get_loss(self):
         return 0
 
     #################################
@@ -31,6 +26,12 @@ class TFBase(object):
         metrics_name = ["LOSS", "PSNR", "SSIM"]
 
         return [metrics, metrics_name]
+    
+    def get_train_op(self):
+        return tf.train.AdamOptimizer(self.lr).minimize(self.loss)
+
+    def get_loss(self):
+        return tf.losses.mean_squared_error(self.y_output, self.y_gt)
 
     #################################
     # The following function should not be changed in common.
@@ -344,10 +345,22 @@ class TBXWriter(object):
             self.writer.add_image(tag=tag, img_tensor=imgs, global_step=step, dataformats='HW')
 
         def hwc():
-            self.writer.add_image(tag=tag, img_tensor=imgs, global_step=step, dataformats='HWC')
+            if imgs.shape[2] == 1:
+                img_cur = (np.squeeze(imgs))
+                self.writer.add_image(tag=tag, img_tensor=img_cur, global_step=step, dataformats='HW')
+            else:
+                self.writer.add_image(tag=tag, img_tensor=imgs, global_step=step, dataformats='HWC')
 
         def nhwc():
-            self.writer.add_images(tag=tag, img_tensor=imgs, global_step=step, dataformats='NHWC')
+            if imgs.shape[3] == 1:
+                img_cur = np.zeros(shape=[imgs.shape[0], imgs.shape[1], imgs.shape[2], 3])
+
+                for i in range(imgs.shape[0]):
+                    img_cur[i, :, :, :] = gray2rgb(np.squeeze(imgs[i]))
+
+                self.writer.add_images(tag=tag, img_tensor=img_cur, global_step=step, dataformats='NHWC')
+            else:
+                self.writer.add_images(tag=tag, img_tensor=imgs, global_step=step, dataformats='NHWC')
 
         shape_dict = {
             2: hw,

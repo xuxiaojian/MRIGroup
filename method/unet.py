@@ -1,12 +1,14 @@
 from method.tfbase import TFBase
 import tensorflow as tf
+import numpy as np
 
 
 class Net2D(TFBase):
     def __init__(self, config):
         self.config = config
-
-        super().__init__(input_shape=[None, None, None, 1], output_shape=[None, None, None, 1])
+        input_channel = int(config['2d-unet']['input_channel'])
+        output_channel = int(config['2d-unet']['output_channel'])
+        super().__init__(input_shape=[None, None, None, input_channel], output_shape=[None, None, None, output_channel])
 
     def get_train_op(self):
         return tf.train.AdamOptimizer(self.lr).minimize(self.loss)
@@ -77,7 +79,14 @@ class Net3D(TFBase):
     def __init__(self, config):
         self.config = config
 
-        super().__init__(input_shape=[None, 10, 320, 320, 1], output_shape=[None, 1, 320, 320, 1])
+        print(self.config["3d-unet"]["input_shape"])
+
+        input_shape = np.fromstring(self.config["3d-unet"]["input_shape"], dtype=np.int, sep=',')
+        output_shape = np.fromstring(self.config["3d-unet"]["output_shape"], dtype=np.int, sep=',')
+
+        super().__init__(input_shape=[None, input_shape[0], input_shape[1], input_shape[2], input_shape[3]],
+                         output_shape=[None, output_shape[0], output_shape[1], output_shape[2], output_shape[3]])
+
         #  Shape = [Batch Depth X Y Channel]
 
     def get_train_op(self):
@@ -97,7 +106,7 @@ class Net3D(TFBase):
             return result_
 
         def conv3d_transpose_bn_relu_dropout(input_, conv3d_filters):
-            result_ = tf.layers.conv3d_transpose(inputs=input_, filters=conv3d_filters, kernel_size=(1, 2, 2),
+            result_ = tf.layers.conv3d_transpose(inputs=input_, filters=conv3d_filters, kernel_size=(2, 2, 2),
                                                  strides=(1, 2, 2), padding='same')
             result_ = tf.nn.relu(result_)
 
