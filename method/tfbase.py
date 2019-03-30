@@ -1,10 +1,9 @@
 import tensorflow as tf
 import numpy as np
-import os
-import shutil
 from tensorboardX import SummaryWriter
 import scipy.io as sio
 from skimage.color import gray2rgb
+from data.tools import new_folder
 
 
 # noinspection PyMethodMayBeStatic
@@ -36,7 +35,7 @@ class TFBase(object):
     #################################
     # The following function should not be changed in common.
     #################################
-    def __init__(self, input_shape, output_shape, is_vis_net=False, path_vis_net=None):
+    def __init__(self, input_shape, output_shape):
         self.x = tf.placeholder(dtype=tf.float32, shape=input_shape)
         self.y_gt = tf.placeholder(dtype=tf.float32, shape=output_shape)
 
@@ -52,11 +51,6 @@ class TFBase(object):
         self.train_op = self.get_train_op()
 
         self.metrics, self.metrics_name = self.get_metrics()
-
-        if is_vis_net:
-            with tf.Session() as sess:
-                sess.run(tf.global_variables_initializer())
-                vis_net = tf.summary.FileWriter(path_vis_net, sess.graph)
 
     def predict(self, x, batch_size, model_path):
 
@@ -107,7 +101,6 @@ class TFTrainer(object):
 
         self.net = net
         self.path = path
-        new_folder(path)
         self.config_info = config_info
 
     def run(self, train_x, train_y, valid_x, valid_y, train_x_imgs, train_y_imgs, valid_x_imgs, valid_y_imgs,
@@ -282,13 +275,6 @@ class TFTrainer(object):
     def restore_model(sess, path):
         saver = tf.train.Saver()
         saver.restore(sess, save_path=path + 'model.ckpt')
-
-
-# Clean output folder
-def new_folder(path):
-    if os.path.exists(path):
-        shutil.rmtree(path, ignore_errors=True)
-    os.makedirs(path)
 
 
 # Convert a python dict to markdown table

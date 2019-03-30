@@ -21,7 +21,6 @@ class Net2D(TFBase):
         def conv2d_bn_relu_dropout(input_, conv2d_kernel_size, conv2d_filters):
             result_ = tf.layers.conv2d(inputs=input_, filters=conv2d_filters, kernel_size=conv2d_kernel_size,
                                        padding='same')
-            # result_ = tf.layers.batch_normalization(inputs=result_, training=self.bn_training)
             result_ = tf.nn.relu(result_)
 
             result_ = tf.layers.dropout(result_, rate=self.dropout_rate, training=self.dropout_training)
@@ -30,7 +29,6 @@ class Net2D(TFBase):
         def conv2d_transpose_bn_relu_dropout(input_, conv2d_filters):
             result_ = tf.layers.conv2d_transpose(inputs=input_, filters=conv2d_filters, kernel_size=(2, 2),
                                                  strides=(2, 2), padding='same')
-            # result_ = tf.layers.batch_normalization(inputs=result_, training=self.bn_training)
             result_ = tf.nn.relu(result_)
 
             result_ = tf.layers.dropout(result_, rate=self.dropout_rate, training=self.dropout_training)
