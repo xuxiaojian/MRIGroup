@@ -24,12 +24,16 @@ config_info = config_info + config_to_markdown_table(config._sections[config['gl
 gpu_index = config['global']['gpu_index']
 method = config['global']['method']
 phase = config['global']['phase']
-path = config['global']['path']
 
 os.environ["CUDA_VISIBLE_DEVICES"] = gpu_index  # Set GPU index
 
-new_folder(path)  # New output folder
-set_logging(path)  # Set Logging Module
+save_path = config['train']['save_path']
+model_path = config['test']['model_path']
+if phase == 'train':
+    new_folder(save_path)  # New output folder
+    set_logging(save_path)  # Set Logging Module
+else:
+    set_logging(model_path)  # Set Logging Module
 
 ######################
 # Load Data
@@ -82,7 +86,7 @@ if phase == 'train':
     train_epoch = int(config['train']['train_epoch'])
     save_epoch = int(config['train']['save_epoch'])
 
-    trainer = TFTrainer(net, path, config_info, lr=lr, batch_size=batch_size, train_epoch=train_epoch,
+    trainer = TFTrainer(net, save_path, config_info, lr=lr, batch_size=batch_size, train_epoch=train_epoch,
                         save_epoch=save_epoch, dropout_value=dropout_rate)
     trainer.run(train_x, train_y, valid_x, valid_y, train_x_imgs, train_y_imgs, valid_x_imgs, valid_y_imgs)
 
