@@ -1,12 +1,14 @@
 import os
 import configparser
 from method.unet import Net2D, Net3D
+from method.sr import SRNet3D
 from data.tools import set_logging, new_folder
-from data.loader import source_3d
+from data.loader import source_3d, source_sr_3d
 import numpy as np
 from method.tfbase import config_to_markdown_table, TFTrainer
 import scipy.io as sio
 import logging
+import subprocess
 
 config = configparser.ConfigParser()  # Load config file
 config.read('config.ini')
@@ -43,6 +45,7 @@ scanlines = config['data']['scanlines']
 
 train_index = np.fromstring(config['data']['train_index'], dtype=np.int, sep=',').tolist()
 valid_index = np.fromstring(config['data']['valid_index'], dtype=np.int, sep=',').tolist()
+imgs_index = np.fromstring(config['data']['imgs_index'], dtype=np.int, sep=',').tolist()
 test_index = np.fromstring(config['data']['test_index'], dtype=np.int, sep=',').tolist()
 
 type_ = config['data']['type_']
@@ -52,20 +55,21 @@ patch_step = int(config['data']['patch_step'])
 
 load_data_dict = {
     'source_3d': source_3d,
+    'source_sr_3d': source_sr_3d,
 }
 
 if phase == 'train':
     logging.info("Loading train data. Number of file is [%d]." % train_index.__len__())
-    train_x, train_y, train_x_imgs, train_y_imgs = load_data_dict[type_](root_path, train_index, scanlines, type_, is_patch, patch_size, patch_step)
+    train_x, train_y, train_x_imgs, train_y_imgs = load_data_dict[type_](root_path, train_index, imgs_index, scanlines, is_patch, patch_size, patch_step)
     logging.info("Shape of train data: " + str(train_x.shape) + ". Shape of imgs of train data: " + str(train_x_imgs.shape))
 
     logging.info("Loading valid data. Number of file is [%d]." % valid_index.__len__())
-    valid_x, valid_y, valid_x_imgs, valid_y_imgs = load_data_dict[type_](root_path, valid_index, scanlines, type_, is_patch, patch_size, patch_step)
+    valid_x, valid_y, valid_x_imgs, valid_y_imgs = load_data_dict[type_](root_path, valid_index, imgs_index, scanlines, is_patch, patch_size, patch_step)
     logging.info("Shape of valid data: " + str(valid_x.shape) + ". Shape of imgs of valid data: " + str(valid_x_imgs.shape))
 
 if phase == 'test':
     logging.info("Loading test data. Number of file is [%d]." % test_index.__len__())
-    test_x, test_y, _, _ = load_data_dict[type_](root_path, test_index, scanlines, type_, is_patch, patch_size, patch_step)
+    test_x, test_y, _, _ = load_data_dict[type_](root_path, test_index, imgs_index, scanlines, is_patch, patch_size, patch_step)
     logging.info("Shape of test data: " + str(test_x.shape))
 
 ######################
@@ -74,6 +78,7 @@ if phase == 'test':
 net_dict = {
     "2d-unet": Net2D,
     "3d-unet": Net3D,
+    '3d-sr': SRNet3D,
 }
 
 net = net_dict[method](config)
@@ -94,10 +99,12 @@ if phase == 'test':
     model_path = config['test']['model_path']
     batch_size = int(config['test']['batch_size'])
 
-    predict = net.predict(test_x, batch_size, model_path)
+    predict = net.predict(test_x, test_y, batch_size, model_path)
 
     sio.savemat(model_path + 'test.mat', {
         "x": test_x,
         "y": test_y,
         "pre": predict,
     })
+
+    subprocess.call(['matlab', '-r', 'vis(\'' + model_path + '\', 1); exit;'])

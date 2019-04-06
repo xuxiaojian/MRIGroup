@@ -4,6 +4,7 @@ from tensorboardX import SummaryWriter
 import scipy.io as sio
 from skimage.color import gray2rgb
 from data.tools import new_folder
+import logging
 
 
 # noinspection PyMethodMayBeStatic
@@ -52,7 +53,7 @@ class TFBase(object):
 
         self.metrics, self.metrics_name = self.get_metrics()
 
-    def predict(self, x, batch_size, model_path):
+    def predict(self, x, y, batch_size, model_path):
 
         pre = np.zeros(shape=x.shape, dtype=np.float64)
 
@@ -65,16 +66,36 @@ class TFBase(object):
             if size > 1:
                 index = TFTrainer.make_batches(size=size, batch_size=batch_size)
 
+                num_batches = index.__len__()
+
+                nums_metrics = self.metrics_name.__len__()
+                epoch_metrics = np.zeros(shape=[nums_metrics, 1])
+
                 for batch, (batch_start, batch_end) in enumerate(index):
                     x_batch = x[batch_start:batch_end]
+                    y_batch = y[batch_start:batch_end]
 
-                    pre[batch_start:batch_end] = sess.run(self.y_output, feed_dict={self.x: x_batch,
-                                                                                    self.dropout_rate: 0,
-                                                                                    self.bn_training: False,
-                                                                                    self.dropout_training: False})
+                    pre[batch_start:batch_end], metrics = sess.run([self.y_output, self.metrics],
+                                                                   feed_dict={self.x: x_batch,
+                                                                   self.y_gt: y_batch,
+                                                                   self.dropout_rate: 0,
+                                                                   self.bn_training: False,
+                                                                   self.dropout_training: False})
+
+                    for i in range(nums_metrics):
+                        metric = metrics[i]
+                        metric = metric.mean()
+                        epoch_metrics[i] += metric
 
                     verbose_info = "[Info] Prediction Output: Batch = [%d]" % (batch + 1)
-                    print(verbose_info)
+                    logging.root.info(verbose_info)
+
+                    verbose_info = "Metrics: "
+                for i in range(nums_metrics):
+                    epoch_metrics[i] /= num_batches
+                    verbose_info += self.metrics_name[i] + ": [%.4f]. " % epoch_metrics[i]
+
+                logging.root.info(verbose_info)
 
             else:
                 pre = sess.run(self.y_output, feed_dict={self.x: x, self.dropout_rate: 0,
@@ -182,7 +203,7 @@ class TFTrainer(object):
 
                     if batch_verbose:
                         if (batch + 1) % batch_verbose_times == 0:
-                            print(verbose_info)
+                            logging.root.info(verbose_info)
 
                     ################
                     # Add data into writer
@@ -196,7 +217,7 @@ class TFTrainer(object):
                     verbose_info += self.net.metrics_name[i] + ": [%.4f]. " % epoch_metrics[i]
 
                 if epoch_verbose:
-                    print(verbose_info)
+                    logging.root.info(verbose_info)
 
                 ################
                 # Add data into writer
@@ -236,7 +257,7 @@ class TFTrainer(object):
                     verbose_info += self.net.metrics_name[i] + ": [%.4f]. " % epoch_metrics[i]
 
                 if epoch_verbose:
-                    print(verbose_info)
+                    logging.root.info(verbose_info)
 
                 ################
                 # Add data into writer
@@ -346,7 +367,19 @@ class TBXWriter(object):
 
                 self.writer.add_images(tag=tag, img_tensor=img_cur, global_step=step, dataformats='NHWC')
             else:
-                self.writer.add_images(tag=tag, img_tensor=imgs, global_step=step, dataformats='NHWC')
+
+                if imgs.shape[3] == 2:
+                    imgs_ = np.concatenate([imgs[:, :, :, 0], imgs[:, :, :, 1]], axis=0)
+
+                    img_cur = np.zeros(shape=[imgs_.shape[0], imgs_.shape[1], imgs_.shape[2], 3])
+
+                    for i in range(imgs_.shape[0]):
+                        img_cur[i, :, :, :] = gray2rgb(np.squeeze(imgs_[i]))
+
+                    self.writer.add_images(tag=tag, img_tensor=img_cur, global_step=step, dataformats='NHWC')
+
+                else:
+                    self.writer.add_images(tag=tag, img_tensor=imgs, global_step=step, dataformats='NHWC')
 
         shape_dict = {
             2: hw,
