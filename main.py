@@ -3,12 +3,13 @@ import configparser
 from method.unet import Net2D, Net3D
 from method.sr import SRNet3D
 from data.tools import set_logging, new_folder
-from data.loader import source_3d, source_sr_3d
+from data.loader import source_3d, source_sr_3d, liver_crop_3d
 import numpy as np
 from method.tfbase import config_to_markdown_table, TFTrainer
 import scipy.io as sio
 import logging
 import subprocess
+import PIL
 
 config = configparser.ConfigParser()  # Load config file
 config.read('config.ini')
@@ -56,6 +57,7 @@ patch_step = int(config['data']['patch_step'])
 load_data_dict = {
     'source_3d': source_3d,
     'source_sr_3d': source_sr_3d,
+    'liver_crop_3d': liver_crop_3d,
 }
 
 if phase == 'train':
@@ -101,10 +103,22 @@ if phase == 'test':
 
     predict = net.predict(test_x, test_y, batch_size, model_path)
 
+    def save_tiff(imgs, path):
+        imgs = np.squeeze(imgs)
+        batches, depths, width, height = imgs.shape
+
+        imgs_list = []
+        for depth in range(depths):
+            for batch in range(batches):
+                imgs_list.append(PIL.Image.fromarray(imgs[batch, depth, :, :]))
+
+        imgs_list[0].save(path, save_all=True, append_images=imgs_list[1:])
+
+    save_tiff(predict, model_path + 'predict.tiff')
+    save_tiff(test_y, model_path + 'test_y.tiff')
+
     sio.savemat(model_path + 'test.mat', {
-        "x": test_x,
+        # "x": test_x,
         "y": test_y,
         "pre": predict,
     })
-
-    subprocess.call(['matlab', '-r', 'vis(\'' + model_path + '\', 1); exit;'])
