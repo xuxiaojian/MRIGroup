@@ -1,15 +1,16 @@
 import os
 import configparser
 from method.unet import Net2D, Net3D
-from method.sr import SRNet3D
+from method.sr import SRNet3D, SRNet2D
 from data.tools import set_logging, new_folder
-from data.loader import source_3d, source_sr_3d, liver_crop_3d
+from data.loader import source_3d, source_sr_3d, liver_crop_3d, source_sr_2d
 import numpy as np
 from method.tfbase import config_to_markdown_table, TFTrainer
 import scipy.io as sio
 import logging
 import subprocess
 import PIL
+import shutil
 
 config = configparser.ConfigParser()  # Load config file
 config.read('config.ini')
@@ -58,12 +59,14 @@ load_data_dict = {
     'source_3d': source_3d,
     'source_sr_3d': source_sr_3d,
     'liver_crop_3d': liver_crop_3d,
+    'source_sr_2d': source_sr_2d,
 }
 
 if phase == 'train':
     logging.info("Loading train data. Number of file is [%d]." % train_index.__len__())
     train_x, train_y, train_x_imgs, train_y_imgs = load_data_dict[type_](root_path, train_index, imgs_index, scanlines, is_patch, patch_size, patch_step)
-    logging.info("Shape of train data: " + str(train_x.shape) + ". Shape of imgs of train data: " + str(train_x_imgs.shape))
+    logging.info("Shape of train_x data: " + str(train_x.shape) + ". Shape of imgs of train_x data: " + str(train_x_imgs.shape))
+    logging.info("Shape of train_y data: " + str(train_y.shape) + ". Shape of imgs of train_y data: " + str(train_y_imgs.shape))
 
     logging.info("Loading valid data. Number of file is [%d]." % valid_index.__len__())
     valid_x, valid_y, valid_x_imgs, valid_y_imgs = load_data_dict[type_](root_path, valid_index, imgs_index, scanlines, is_patch, patch_size, patch_step)
@@ -81,6 +84,7 @@ net_dict = {
     "2d-unet": Net2D,
     "3d-unet": Net3D,
     '3d-sr': SRNet3D,
+    '2d-sr': SRNet2D,
 }
 
 net = net_dict[method](config)
@@ -104,21 +108,17 @@ if phase == 'test':
     predict = net.predict(test_x, test_y, batch_size, model_path)
 
     def save_tiff(imgs, path):
-        imgs = np.squeeze(imgs)
-        batches, depths, width, height = imgs.shape
+        batches, depths, width, height, channel = imgs.shape
 
         imgs_list = []
-        for depth in range(depths):
+        for depth in range(1):
             for batch in range(batches):
-                imgs_list.append(PIL.Image.fromarray(imgs[batch, depth, :, :]))
+                imgs_list.append(PIL.Image.fromarray(np.squeeze(imgs[batch, depth, :, :, :])))
 
         imgs_list[0].save(path, save_all=True, append_images=imgs_list[1:])
 
     save_tiff(predict, model_path + 'predict.tiff')
-    save_tiff(test_y, model_path + 'test_y.tiff')
 
-    sio.savemat(model_path + 'test.mat', {
-        # "x": test_x,
-        "y": test_y,
-        "pre": predict,
-    })
+    # sio.savemat(model_path + 'test.mat', {
+    #     "pre": predict,
+    # })

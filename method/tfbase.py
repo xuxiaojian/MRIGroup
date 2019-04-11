@@ -55,7 +55,7 @@ class TFBase(object):
 
     def predict(self, x, y, batch_size, model_path):
 
-        pre = np.zeros(shape=x.shape, dtype=np.float64)
+        pre = np.zeros(shape=y.shape, dtype=np.float32)
 
         gpu_options = tf.GPUOptions(allow_growth=True)
         with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
@@ -165,7 +165,8 @@ class TFTrainer(object):
         with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
             sess.run(tf.global_variables_initializer())
 
-            writer_step = 0
+            writer_batch_step = 0
+            writer_epoch_step = 0
             for epoch in range(self.train_epoch):
 
                 ################
@@ -208,8 +209,8 @@ class TFTrainer(object):
                     ################
                     # Add data into writer
                     ################
-                    writer.train_batch(metrics, self.net.metrics_name, writer_step)
-                    writer_step += 1
+                    writer.train_batch(metrics, self.net.metrics_name, writer_batch_step)
+                    writer_batch_step += 1
 
                 verbose_info = "[Info] Epoch Output: Epoch = [%d] Totally [%d]. " % (epoch + 1, self.train_epoch)
                 for i in range(nums_metrics):
@@ -222,12 +223,12 @@ class TFTrainer(object):
                 ################
                 # Add data into writer
                 ################
-                writer.train_epoch(epoch_metrics, self.net.metrics_name, writer_step)
+                writer.train_epoch(epoch_metrics, self.net.metrics_name, writer_epoch_step)
                 epoch_imgs = sess.run(self.net.y_output, feed_dict={self.net.x: train_x_imgs,
                                                                     self.net.dropout_rate: 0,
                                                                     self.net.bn_training: False,
                                                                     self.net.dropout_training: False})
-                writer.imgs_train_epoch(epoch_imgs, writer_step)
+                writer.imgs_train_epoch(epoch_imgs, writer_epoch_step)
 
                 ################
                 # Validation
@@ -262,12 +263,12 @@ class TFTrainer(object):
                 ################
                 # Add data into writer
                 ################
-                writer.valid_epoch(epoch_metrics, self.net.metrics_name, writer_step)
+                writer.valid_epoch(epoch_metrics, self.net.metrics_name, writer_epoch_step)
                 epoch_imgs = sess.run(self.net.y_output, feed_dict={self.net.x: valid_x_imgs,
                                                                     self.net.dropout_rate: 0,
                                                                     self.net.bn_training: False,
                                                                     self.net.dropout_training: False})
-                writer.imgs_valid_epoch(epoch_imgs, writer_step)
+                writer.imgs_valid_epoch(epoch_imgs, writer_epoch_step)
                 ################
                 # Save .mat
                 ################
@@ -280,6 +281,8 @@ class TFTrainer(object):
                     model_save_path = self.path + "model/epoch_" + str(epoch + 1) + "/"
                     new_folder(model_save_path)
                     self.save_model(sess, model_save_path)
+
+                writer_epoch_step += 1
 
     @staticmethod
     def make_batches(size, batch_size):
@@ -356,7 +359,15 @@ class TBXWriter(object):
                 img_cur = (np.squeeze(imgs))
                 self.writer.add_image(tag=tag, img_tensor=img_cur, global_step=step, dataformats='HW')
             else:
-                self.writer.add_image(tag=tag, img_tensor=imgs, global_step=step, dataformats='HWC')
+
+                if imgs.shape[2] == 2:
+                    imgs_ = np.zeros(shape=[imgs.shape[2], imgs.shape[0], imgs.shape[1], 3])
+                    for i in range(imgs.shape[2]):
+                        imgs_[i, :, :, :] = gray2rgb(np.squeeze(imgs[:, :, i]))
+
+                    self.writer.add_images(tag=tag, img_tensor=imgs_, global_step=step, dataformats='NHWC')
+                else:
+                    self.writer.add_image(tag=tag, img_tensor=imgs, global_step=step, dataformats='HWC')
 
         def nhwc():
             if imgs.shape[3] == 1:

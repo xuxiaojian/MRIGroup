@@ -77,10 +77,12 @@ def source_sr_3d(root_path, mat_index, imgs_index, scanlines, is_patch, patch_si
     net = Net3D(config)
 
     model_path = config['3d-sr']['unet_model_path']
-    x_unet = net.predict(x=x_src, y=y_src, batch_size=8, model_path=model_path)
+    batch_size = int(config['3d-sr']['unet_batch_size'])
+
+    x_unet = net.predict(x=x_src, y=y_src, batch_size=batch_size, model_path=model_path)
     x_unet = normalization(x_unet)
 
-    x_imgs_unet = net.predict(x=x_imgs, y=y_imgs, batch_size=8, model_path=model_path)
+    x_imgs_unet = net.predict(x=x_imgs, y=y_imgs, batch_size=batch_size, model_path=model_path)
     x_imgs_unet = normalization(x_imgs_unet)
 
     tf.reset_default_graph()
@@ -88,7 +90,47 @@ def source_sr_3d(root_path, mat_index, imgs_index, scanlines, is_patch, patch_si
     x_src = np.concatenate([x_unet, x_src], axis=-1)
     x_imgs = np.concatenate([x_imgs_unet, x_imgs], axis=-1)
 
+    def patch_operate(input_):
+        batch, depth, _, _, channel = input_.shape
+        result = view_as_windows(input_, (batch, depth, patch_size, patch_size, channel), patch_step)
+        result = np.squeeze(result)
+        result = np.ascontiguousarray(result)
+        result.shape = (-1,) + result.shape[3:]
+
+        if channel == 1:
+            result = np.expand_dims(result, axis=-1)
+
+        result = normalization(result)
+        return result
+
+    if is_patch:
+        x_src = patch_operate(x_src); y_src=patch_operate(y_src)
+
+        x_imgs = []; y_imgs = []
+        for i in imgs_index:
+            x_imgs.append(np.expand_dims(x_src[i], axis=0)); y_imgs.append(np.expand_dims(y_src[i], axis=0))
+
+        x_imgs = np.concatenate(x_imgs, axis=0); y_imgs = np.concatenate(y_imgs, axis=0)
+
     return x_src, y_src, x_imgs, y_imgs
+
+
+def source_sr_2d(root_path, mat_index, imgs_index, scanlines, is_patch, patch_size, patch_step):
+
+    x_src, y_src, _, _ = source_sr_3d(root_path, mat_index, imgs_index, scanlines, is_patch, patch_size, patch_step)
+    _, _, x_imgs, y_imgs = source_sr_3d(root_path, [mat_index[0]], imgs_index, scanlines, False, patch_size, patch_step)
+
+    def user_reshape(imgs):
+
+        batches, depth, height, width, channel = imgs.shape
+        imgs = np.ascontiguousarray(imgs)
+        imgs.shape = [batches * depth, height, width, channel]
+
+        return imgs
+
+    x_src = user_reshape(x_src); y_src = user_reshape(y_src)
+
+    return x_src, y_src, x_imgs[:, 0, :, :, :], y_imgs[:, 0, :, :, :]
 
 
 def mri_liver_crop(root_path, mat_index, scanlines):

@@ -77,8 +77,6 @@ class Net3D(TFBase):
     def __init__(self, config):
         self.config = config
 
-        print(self.config["3d-unet"]["input_shape"])
-
         input_shape = np.fromstring(self.config["3d-unet"]["input_shape"], dtype=np.int, sep=',')
         output_shape = np.fromstring(self.config["3d-unet"]["output_shape"], dtype=np.int, sep=',')
 
