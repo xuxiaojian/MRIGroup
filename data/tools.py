@@ -59,6 +59,5 @@ def set_logging(path):
 
 # Clean output folder
 def new_folder(path):
-    if os.path.exists(path):
-        shutil.rmtree(path, ignore_errors=True)
-    os.makedirs(path)
+    if not os.path.exists(path):
+        os.makedirs(path)

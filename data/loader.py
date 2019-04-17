@@ -17,7 +17,7 @@ def mri_source(root_path, mat_index, scanlines):
     for i in mat_index:
         logging.info("Index of current mat file:[%d]. " % i + "Path: " + file_path[i])
 
-        mat_file = sio.loadmat(file_path[i] + '/MCNUFFT_' + scanlines + '.mat')
+        mat_file = sio.loadmat(file_path[i] + '/NUFFT_' + scanlines + '.mat')
         mat_data = mat_file['recon_MCNUFFT']
         mat_data = np.swapaxes(mat_data, 0, 2)
         mat_data = np.swapaxes(mat_data, 1, 3)
@@ -78,6 +78,7 @@ def source_sr_3d(root_path, mat_index, imgs_index, scanlines, is_patch, patch_si
 
     model_path = config['3d-sr']['unet_model_path']
     batch_size = int(config['3d-sr']['unet_batch_size'])
+    is_sr_concatenate = bool(int(config['data']['is_sr_concatenate']))
 
     x_unet = net.predict(x=x_src, y=y_src, batch_size=batch_size, model_path=model_path)
     x_unet = normalization(x_unet)
@@ -87,8 +88,12 @@ def source_sr_3d(root_path, mat_index, imgs_index, scanlines, is_patch, patch_si
 
     tf.reset_default_graph()
 
-    x_src = np.concatenate([x_unet, x_src], axis=-1)
-    x_imgs = np.concatenate([x_imgs_unet, x_imgs], axis=-1)
+    if is_sr_concatenate:
+        x_src = np.concatenate([x_unet, x_src], axis=-1)
+        x_imgs = np.concatenate([x_imgs_unet, x_imgs], axis=-1)
+    else:
+        x_src = x_unet
+        x_imgs = x_imgs_unet
 
     def patch_operate(input_):
         batch, depth, _, _, channel = input_.shape
@@ -154,7 +159,7 @@ def mri_liver_crop(root_path, mat_index, scanlines):
     for i in mat_index:
         logging.info("Index of current mat file:[%d]. " % i + "Path: " + file_path[i])
 
-        mat_file = sio.loadmat(file_path[i] + '/MCNUFFT_' + scanlines + '.mat')
+        mat_file = sio.loadmat(file_path[i] + '/NUFFT_' + scanlines + '.mat')
         mat_data = mat_file['recon_MCNUFFT']
         mat_data = np.swapaxes(mat_data, 0, 2)
         mat_data = np.swapaxes(mat_data, 1, 3)

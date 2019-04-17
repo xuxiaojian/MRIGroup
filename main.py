@@ -1,6 +1,6 @@
 import os
 import configparser
-from method.unet import Net2D, Net3D
+from method.unet import Net2D, Net3D, ResNet3D
 from method.sr import SRNet3D, SRNet2D
 from data.tools import set_logging, new_folder
 from data.loader import source_3d, source_sr_3d, liver_crop_3d, source_sr_2d
@@ -83,6 +83,7 @@ if phase == 'test':
 net_dict = {
     "2d-unet": Net2D,
     "3d-unet": Net3D,
+    '3d-resunet': ResNet3D,
     '3d-sr': SRNet3D,
     '2d-sr': SRNet2D,
 }
@@ -108,17 +109,32 @@ if phase == 'test':
     predict = net.predict(test_x, test_y, batch_size, model_path)
 
     def save_tiff(imgs, path):
-        batches, depths, width, height, channel = imgs.shape
+        if imgs.shape.__len__() == 5:
+            batches, depths, width, height, channel = imgs.shape
 
-        imgs_list = []
-        for depth in range(1):
-            for batch in range(batches):
-                imgs_list.append(PIL.Image.fromarray(np.squeeze(imgs[batch, depth, :, :, :])))
+            imgs_list = []
+            for depth in range(1):
+                for batch in range(batches):
+                    imgs_list.append(PIL.Image.fromarray(np.squeeze(imgs[batch, depth, :, :, :])))
 
-        imgs_list[0].save(path, save_all=True, append_images=imgs_list[1:])
+            imgs_list[0].save(path, save_all=True, append_images=imgs_list[1:])
+
+        else:
+            if imgs.shape.__len__() == 4:
+                batches, width, height, channel = imgs.shape
+
+                imgs_list = []
+                for batch in range(batches):
+                    imgs_list.append(PIL.Image.fromarray(np.squeeze(imgs[batch, :, :, :])))
+
+                imgs_list[0].save(path, save_all=True, append_images=imgs_list[1:])
+
+            else:
+                logging.root.error("Incorrect Output Dimension when .tiff file outputing")
+
 
     save_tiff(predict, model_path + 'predict.tiff')
 
-    # sio.savemat(model_path + 'test.mat', {
-    #     "pre": predict,
-    # })
+    sio.savemat(model_path + 'predict.mat', {
+        "pre": predict,
+    })

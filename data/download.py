@@ -142,3 +142,5 @@ for i in range(15, file_len):
     call(['rclone', 'copy', dat_file[i][1] + dat_file[i][0] + '.dat', dat_file[i][2]])
     new_folder(dat_file[i][2] + dat_file[i][0] + '/')
     call(['rclone', 'copy', dat_file[i][1] + dat_file[i][0] + '/', dat_file[i][2] + dat_file[i][0] + '/'])
+    exit(233)
+
