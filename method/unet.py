@@ -1,6 +1,110 @@
 from method.tfbase import TFBase
 import tensorflow as tf
 import numpy as np
+import torch
+from torch import nn
+
+
+class TorchNet3D(torch.nn.Module):
+    def __init__(self, config):
+        super(TorchNet3D, self).__init__()
+
+        # Network Parameters
+        self.config = config
+        self.conv_ks = int(self.config['torch-unet3d']['conv_ks'])
+        padding = int((self.conv_ks - 1) / 2)
+
+        self.conv_filter_root = int(self.config['torch-unet3d']['conv_filter_root'])
+        self.conv_times = int(self.config['torch-unet3d']['conv_times'])
+
+        ##### Trainable #####
+
+        # 1st
+        filters = 2 ** 0 * self.conv_filter_root
+        self.Conv3d1DownIn = nn.Conv3d(1, filters, self.conv_ks, padding=padding)
+        self.Conv3d1DownList = nn.ModuleList([nn.Conv3d(filters, filters, self.conv_ks, padding=padding) for i in range(self.conv_times)])
+
+        self.Conv3dTranspose1 = nn.ConvTranspose3d(2 ** 1 * self.conv_filter_root, filters, self.conv_ks, padding=padding, output_padding=[0, 1, 1], stride=[1, 2, 2])
+        self.Conv3d1UpIn = nn.Conv3d(filters*2, filters, self.conv_ks, padding=padding)
+        self.Conv3d1UpList = nn.ModuleList([nn.Conv3d(filters, filters, self.conv_ks, padding=padding) for i in range(self.conv_times)])
+
+        self.Conv3dOutput = nn.Conv3d(filters, 1, self.conv_ks, padding=padding)
+
+        # 2nd
+        filters = 2 ** 1 * self.conv_filter_root
+        self.Conv3d2DownIn = nn.Conv3d(2 ** 0 * self.conv_filter_root, filters, self.conv_ks, padding=padding)
+        self.Conv3d2DownList = nn.ModuleList([nn.Conv3d(filters, filters, self.conv_ks, padding=padding) for i in range(self.conv_times)])
+
+        self.Conv3dTranspose2 = nn.ConvTranspose3d(2 ** 2 * self.conv_filter_root, filters, self.conv_ks,padding=padding, output_padding=[0, 1, 1], stride=[1, 2, 2])
+        self.Conv3d2UpIn = nn.Conv3d(filters * 2, filters, self.conv_ks, padding=padding)
+        self.Conv3d2UpList = nn.ModuleList([nn.Conv3d(filters, filters, self.conv_ks, padding=padding) for i in range(self.conv_times)])
+
+        # 3nd
+        filters = 2 ** 2 * self.conv_filter_root
+        self.Conv3d3DownIn = nn.Conv3d(2 ** 1 * self.conv_filter_root, filters, self.conv_ks, padding=padding)
+        self.Conv3d3DownList = nn.ModuleList([nn.Conv3d(filters, filters, self.conv_ks, padding=padding) for i in range(self.conv_times)])
+
+        self.Conv3dTranspose3 = nn.ConvTranspose3d(2 ** 3 * self.conv_filter_root, filters, self.conv_ks, padding=padding, output_padding=[0, 1, 1], stride=[1, 2, 2])
+        self.Conv3d3UpIn = nn.Conv3d(filters * 2, filters, self.conv_ks, padding=padding)
+        self.Conv3d3UpList = nn.ModuleList([nn.Conv3d(filters, filters, self.conv_ks, padding=padding) for i in range(self.conv_times)])
+
+        # 4nd
+        filters = 2 ** 3 * self.conv_filter_root
+        self.Conv3d3DownIn = nn.Conv3d(2 ** 2 * self.conv_filter_root, filters, self.conv_ks, padding=padding)
+        self.Conv3d3DownList = nn.ModuleList([nn.Conv3d(filters, filters, self.conv_ks, padding=padding) for i in range(self.conv_times)])
+
+        self.Conv3dTranspose4 = nn.ConvTranspose3d(2 ** 4 * self.conv_filter_root, filters, self.conv_ks, padding=padding, output_padding=[0, 1, 1], stride=[1, 2, 2])
+        self.Conv3d3UpIn = nn.Conv3d(filters * 2, filters, self.conv_ks, padding=padding)
+        self.Conv3d3UpList = nn.ModuleList([nn.Conv3d(filters, filters, self.conv_ks, padding=padding) for i in range(self.conv_times)])
+
+        # The Bottom
+        filters = 2 ** 4 * self.conv_filter_root
+        self.Conv3d5DownIn = nn.Conv3d(2 ** 3 * self.conv_filter_root, filters, self.conv_ks, padding=int((self.conv_ks - 1) / 2))
+        self.Conv3d5DownList = nn.ModuleList([nn.Conv3d(filters, filters, self.conv_ks, padding=int((self.conv_ks - 1) / 2)) for i in range(self.conv_times)])
+
+        ##### Not Trainable #####
+        self.Dropout = nn.Dropout3d(0.1)
+        self.Maxpool = nn.MaxPool3d(kernel_size=[1, 2, 2], stride=[1, 2, 2])
+        self.Relu = nn.ReLU()
+
+    def forward(self, x):
+        layers_storage = []
+
+        # 1st
+        x = self.Dropout(self.Relu(self.Conv3d1DownIn(x)))
+        for i in range(self.conv_times):
+            x = self.Dropout(self.Relu(self.Conv3d1DownList[i](x)))
+
+        layers_storage.append(x)
+        x = self.Maxpool(x)
+
+        # 2nd
+        x = self.Dropout(self.Relu(self.Conv3d2DownIn(x)))
+        for i in range(self.conv_times):
+            x = self.Dropout(self.Relu(self.Conv3d2DownList[i](x)))
+
+        layers_storage.append(x)
+        x = self.Maxpool(x)
+
+        # 3rd
+        x = self.Dropout(self.Relu(self.Conv3d3DownIn(x)))
+        for i in range(self.conv_times):
+            x = self.Dropout(self.Relu(self.Conv3d3DownList[i](x)))
+
+        layers_storage.append(x)
+        x = self.Maxpool(x)
+
+        # 4nd
+        x = self.Dropout(self.Relu(self.Conv3d4DownIn(x)))
+        for i in range(self.conv_times):
+            x = self.Dropout(self.Relu(self.Conv3d4DownList[i](x)))
+
+        layers_storage.append(x)
+        x = self.Maxpool(x)
+
+        # Bottom
+
+        return x
 
 
 class Net2D(TFBase):
@@ -74,11 +178,12 @@ class Net2D(TFBase):
 
 
 class Net3D(TFBase):
-    def __init__(self, config):
+    def __init__(self, config, input_shape=None, output_shape=None):
         self.config = config
 
-        input_shape = np.fromstring(self.config["3d-unet"]["input_shape"], dtype=np.int, sep=',')
-        output_shape = np.fromstring(self.config["3d-unet"]["output_shape"], dtype=np.int, sep=',')
+        if (input_shape is None) and (output_shape is None):
+            input_shape = np.fromstring(self.config["3d-unet"]["input_shape"], dtype=np.int, sep=',')
+            output_shape = np.fromstring(self.config["3d-unet"]["output_shape"], dtype=np.int, sep=',')
 
         super().__init__(input_shape=[None, input_shape[0], input_shape[1], input_shape[2], input_shape[3]],
                          output_shape=[None, output_shape[0], output_shape[1], output_shape[2], output_shape[3]])

@@ -203,3 +203,58 @@ def liver_crop_3d(root_path, mat_index, imgs_index, scanlines, is_patch, patch_s
     x_imgs = np.concatenate(x_imgs, axis=0); y_imgs = np.concatenate(y_imgs, axis=0)
 
     return x_src, y_src, x_imgs, y_imgs
+
+
+def liver_combine(root_path, mat_index, imgs_index, scanlines, is_patch, patch_size, patch_step):
+    mask = [
+        [116, 244, 70, 198],
+        [96, 224, 51, 179],
+        [169, 297, 111, 239],
+        [121, 249, 101, 229],
+        [111, 239, 93, 221],
+        [106, 234, 103, 231],
+        [96, 224, 98, 226],
+        [51, 179, 103, 231],
+        [76, 204, 86, 214],
+    ]
+
+    config = configparser.ConfigParser()  # Load config file
+    config.read('config.ini')
+    from method.unet import Net3D
+    import tensorflow as tf
+
+    x_src, y_src, _, _ = source_3d(root_path, mat_index, imgs_index, scanlines, 0, patch_size, patch_step)
+    net = Net3D(config, input_shape=[10, 320, 320, 1], output_shape=[10, 320, 320, 1])
+    model_path = config['3d-sr']['unet_model_path']
+    batch_size = int(config['3d-sr']['unet_batch_size'])
+
+    x_unet = net.predict(x=x_src, y=y_src, batch_size=batch_size, model_path=model_path)
+    tf.reset_default_graph()
+
+    x_src_liver, y_src_liver, _, _ = liver_crop_3d(root_path, mat_index, imgs_index, scanlines, is_patch, patch_size, patch_step)
+    net = Net3D(config, input_shape=[10, 128, 128, 1], output_shape=[10, 128, 128, 1])
+    model_path = config['data']['livercrop_model_path']
+    batch_size = int(config['data']['livercrop_batch_size'])
+
+    x_liver_unet = net.predict(x=x_src_liver, y=y_src_liver, batch_size=batch_size, model_path=model_path)
+    tf.reset_default_graph()
+
+    index = 0
+    for i in mat_index:
+        x_unet[index:index+96, :, mask[i][0]:mask[i][1], mask[i][2]:mask[i][3], :] = x_liver_unet[index:index+96, :, :, :, :]
+        index += 96
+
+    x_liver_combine = x_unet
+    x_liver_combine = normalization(x_liver_combine)
+    y_liver_combine = y_src
+
+    x_imgs = []
+    y_imgs = []
+    for i in imgs_index:
+        x_imgs.append(np.expand_dims(x_liver_combine[i], axis=0))
+        y_imgs.append(np.expand_dims(y_liver_combine[i], axis=0))
+
+    x_imgs = np.concatenate(x_imgs, axis=0)
+    y_imgs = np.concatenate(y_imgs, axis=0)
+
+    return x_liver_combine, y_liver_combine, x_imgs, y_imgs
