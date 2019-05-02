@@ -1,100 +1,104 @@
 import tensorflow as tf
+import numpy as np
 import logging
 import h5py
+import glob
 
 
 class MRIData(object):
+    def __init__(self, root_path: str, scan_lines: str, file_index: list, sample_index: list, is_temporal: bool = False, batch_size: int = 1):
+        """
+        Key variables in this object will be: (1) dataset: main variable and (2) sample: certain images for visualization.
 
-    def __init__(self, root_path, scan_lines, mat_index, img_index: list, is_shuffle=True, is_liver_crop=False):
-        self.liver_mask = tf.constant([
-            [116, 244, 70, 198],
-            [96, 224, 51, 179],
-            [169, 297, 111, 239],
-            [121, 249, 101, 229],
-            [111, 239, 93, 221],
-            [106, 234, 103, 231],
-            [96, 224, 98, 226],
-            [51, 179, 103, 231],
-            [76, 204, 86, 214],
-        ])  # range from healthy 1 to 9.
+        :param root_path: The root-level path of MRI data. Example of mri data file: root_path/healthy_01/*.
+        :param scan_lines: Scan lines of MCNUFFT for noised input in training, ground-truth will always be 2000 line CS.
+        :param file_index: Load certain index of data.
+        :param sample_index: Load certain index of image in the **first** index of data.
+        :param is_temporal: If True, the dimension of data will be None * temporal * phase * width * height * channel.
+        """
+        logging.root.info("[MRIData Object]")
 
-        self.is_liver_crop = is_liver_crop
+        # Read Source H5 File Pointer
+        self.x_file = []; self.y_file = []
+        self.sample_index = sample_index
 
-        self.data = MRIDataH5(root_path=root_path, mat_index=mat_index, img_index=img_index, scan_lines=scan_lines)
+        self.is_temporal = is_temporal
+        self.time_step = 3  # valid if is_temporal=True
 
-        self.tf_dataset = self.get_dataset(self.data.generator, output_shape=(self.data.phase, self.data.width, self.data.height))
-        if is_shuffle:
-            self.tf_dataset = self.tf_dataset.shuffle(buffer_size=self.data.batches())
-        self.tf_dataset = self.tf_dataset.repeat()
+        x_file_path = glob.glob(root_path + '*/MCNUFFT_' + scan_lines + '*.h5'); x_file_path.sort()
+        y_file_path = glob.glob(root_path + '*/CS_2000' + '*.h5'); y_file_path.sort()
 
-        self.img_dataset = self.get_dataset(self.data.img_generator, output_shape=(self.data.phase, self.data.width, self.data.height)).batch(self.data.img_batches()).repeat(1)
+        for i in file_index:
+            logging.root.info("Loading H5File Pointer in Path: " + x_file_path[i] + '.')
+            self.x_file.append(h5py.File(x_file_path[i], 'r'))
+            self.y_file.append(h5py.File(y_file_path[i], 'r'))
 
-    def get_dataset(self, generator_, output_shape):
-        dataset = tf.data.Dataset.from_generator(generator=generator_, output_shapes=((), output_shape, output_shape), output_types=(tf.int32, tf.float32, tf.float32))
-        dataset = dataset.map(self.map_fn)
+        _, self.phase, self.width, self.height = self.x_file[0]['recon_MCNUFFT'].shape
+        self.channel = 1
 
-        return dataset
+        # Construct dataset
+        if is_temporal:
+            output_shape = (self.time_step, self.phase, self.width, self.height)
+        else:
+            output_shape = (self.phase, self.width, self.height)
 
-    def map_fn(self, i, x, y):
+        self.dataset = tf.data.Dataset.from_generator(generator=self.dataset_generator, output_shapes=(output_shape, output_shape),
+                                                      output_types=(tf.float32, tf.float32)).map(self.preprocess_fn).shuffle(buffer_size=self.dataset_len()).repeat().batch(batch_size)
 
-        def transform(index_, input_):
+        self.sample = tf.data.Dataset.from_generator(generator=self.sample_generator, output_shapes=(output_shape, output_shape),
+                                                     output_types=(tf.float32, tf.float32)).map(self.preprocess_fn).repeat().batch(self.sample_len())
+
+    def dataset_len(self):
+        output_len = 0
+        for i in self.x_file:
+            output_len += i['recon_MCNUFFT'].shape[0]
+        return output_len
+
+    def sample_len(self):
+        return len(self.sample_index)
+
+    def dataset_generator(self):
+        for file_index in range(len(self.x_file)):
+            batches = self.x_file[file_index]['recon_MCNUFFT'].shape[0]
+
+            if self.is_temporal:
+                for batch_index in range(batches):
+                    temporal_index = np.array([i for i in range(self.time_step)]) + batch_index - int(self.time_step / 2)
+                    if batch_index >= (batches - int(self.time_step / 2)):  # due to slice rule of h5py that the indexes must be increasing
+                        temporal_index -= batches
+                    temporal_index = temporal_index.tolist()
+
+                    yield self.x_file[file_index]['recon_MCNUFFT'][temporal_index],\
+                        self.y_file[file_index]['recon_CS'][temporal_index]
+            else:
+                for batch_index in range(batches):
+                    yield self.x_file[file_index]['recon_MCNUFFT'][batch_index], \
+                          self.y_file[file_index]['recon_CS'][batch_index]
+
+    def sample_generator(self):
+        for i in self.sample_index:
+            if self.is_temporal:
+                batches = self.x_file[0]['recon_MCNUFFT'].shape[0]
+                temporal_index = np.array([i for i in range(self.time_step)]) + i - int(self.time_step / 2)
+                if i >= (batches - int(
+                        self.time_step / 2)):  # due to slice rule of h5py that the indexes must be increasing
+                    temporal_index -= batches
+                temporal_index = temporal_index.tolist()
+
+                yield self.x_file[0]['recon_MCNUFFT'][temporal_index], self.y_file[0]['recon_CS'][temporal_index]
+            else:
+                yield self.x_file[0]['recon_MCNUFFT'][i], self.y_file[0]['recon_CS'][i]
+
+    def preprocess_fn(self, x, y):
+        def transform(input_):
             output_ = tf.transpose(input_, [0, 2, 1])
-            output_ = tf.expand_dims(output_, -1)
-
             output_ -= tf.reduce_min(output_)
             output_ /= tf.reduce_max(output_)
 
-            if self.is_liver_crop:
-                width_up = self.liver_mask[index_][0]
-                width_bottom = self.liver_mask[index_][1]
-                height_up = self.liver_mask[index_][2]
-                height_bottom = self.liver_mask[index_][3]
-
-                output_ = output_[:, width_up:width_bottom, height_up:height_bottom, :]
-
             return output_
 
-        return transform(i, x), transform(i, y)
+        if self.is_temporal:
+            return tf.expand_dims(tf.map_fn(transform, x), -1), tf.expand_dims(tf.map_fn(transform, y), -1)
 
-
-class MRIDataH5(object):
-    # Read H5 source File of MRI data
-
-    def __init__(self, root_path, mat_index, img_index, scan_lines):
-        import glob
-        self.img_index = img_index
-        self.mat_index = mat_index
-
-        file_path = glob.glob(root_path + '*_*')
-        file_path.sort()
-
-        self.x_h5file = []
-        self.y_h5file = []
-        for i in mat_index:
-            logging.root.info("[MRIDataH5] Get h5 file with index [%d]." % i + "Path: " + file_path[i])
-            self.x_h5file.append(h5py.File(file_path[i] + '/MCNUFFT_' + scan_lines + '.h5', 'r'))
-            self.y_h5file.append(h5py.File(file_path[i] + '/CS_2000' + '.h5', 'r'))
-
-        _, self.phase, self.width, self.height = self.x_h5file[0]['recon_MCNUFFT'].shape
-
-    def generator(self):
-        for i in range(self.x_h5file.__len__()):
-            batch_file, _, _, _ = self.x_h5file[i]['recon_MCNUFFT'].shape
-            for batch in range(batch_file):
-                yield self.mat_index[i], self.x_h5file[i]['recon_MCNUFFT'][batch], self.y_h5file[i]['recon_CS'][batch]
-
-    def batches(self):
-        output_ = 0
-        for i in range(self.x_h5file.__len__()):
-            batch_file, _, _, _ = self.x_h5file[i]['recon_MCNUFFT'].shape
-            output_ += batch_file
-
-        return output_
-
-    def img_generator(self):
-        for i in self.img_index:
-            yield self.mat_index[0], self.x_h5file[0]['recon_MCNUFFT'][i], self.y_h5file[0]['recon_CS'][i]
-
-    def img_batches(self):
-
-        return self.img_index.__len__()
+        else:
+            return tf.expand_dims(transform(x), -1), tf.expand_dims(transform(y), -1)
