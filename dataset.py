@@ -6,7 +6,15 @@ import glob
 
 
 class MRIData(object):
-    def __init__(self, root_path: str, scan_lines: str, file_index: list, sample_index: list, is_temporal: bool = False, batch_size: int = 1):
+    def __init__(self, file_index: list,
+                 scan_lines: str = '400',
+                 root_path: str = '/export/project/gan.weijie/dataset/mri_source/',
+                 sample_index: list = (16, 21, 27, 30),
+                 is_temporal: bool = True,
+                 time_step: int = 3,
+                 is_shuffle: bool = True,
+                 ):
+
         """
         Key variables in this object will be: (1) dataset: main variable and (2) sample: certain images for visualization.
 
@@ -23,7 +31,7 @@ class MRIData(object):
         self.sample_index = sample_index
 
         self.is_temporal = is_temporal
-        self.time_step = 3  # valid if is_temporal=True
+        self.time_step = time_step  # valid if is_temporal=True
 
         x_file_path = glob.glob(root_path + '*/MCNUFFT_' + scan_lines + '*.h5'); x_file_path.sort()
         y_file_path = glob.glob(root_path + '*/CS_2000' + '*.h5'); y_file_path.sort()
@@ -42,11 +50,14 @@ class MRIData(object):
         else:
             output_shape = (self.phase, self.width, self.height)
 
-        self.dataset = tf.data.Dataset.from_generator(generator=self.dataset_generator, output_shapes=(output_shape, output_shape),
-                                                      output_types=(tf.float32, tf.float32)).map(self.preprocess_fn).shuffle(buffer_size=self.dataset_len()).repeat().batch(batch_size)
+        self.tf_dataset = tf.data.Dataset.from_generator(generator=self.dataset_generator, output_shapes=(output_shape, output_shape),
+                                                         output_types=(tf.float32, tf.float32)).map(self.preprocess_fn)
+        if is_shuffle:
+            self.tf_dataset = self.tf_dataset.shuffle(buffer_size=self.dataset_len())
+        self.tf_dataset = self.tf_dataset.repeat()
 
-        self.sample = tf.data.Dataset.from_generator(generator=self.sample_generator, output_shapes=(output_shape, output_shape),
-                                                     output_types=(tf.float32, tf.float32)).map(self.preprocess_fn).repeat().batch(self.sample_len())
+        self.tf_sample = tf.data.Dataset.from_generator(generator=self.sample_generator, output_shapes=(output_shape, output_shape),
+                                                        output_types=(tf.float32, tf.float32)).map(self.preprocess_fn).repeat().batch(self.sample_len())
 
     def dataset_len(self):
         output_len = 0
