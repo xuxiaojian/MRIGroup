@@ -1,8 +1,4 @@
 import tensorflow as tf
-import numpy as np
-import logging
-import h5py
-import glob
 
 
 class DatasetBase(object):

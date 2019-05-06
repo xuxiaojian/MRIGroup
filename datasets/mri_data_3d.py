@@ -79,11 +79,11 @@ class MRIData3DBase(DatasetBase):
         def transform(input_np):
             output_np = np.swapaxes(input_np, 1, 2)
 
-            for i in range(self.phase):
-                output_np[i] -= np.amin(output_np[i])
-                output_np[i] /= np.amax(output_np[i])
-            # output_np -= np.amin(output_np)
-            # output_np /= np.amax(output_np)
+            # for i in range(self.phase):
+            #     output_np[i] -= np.amin(output_np[i])
+            #     output_np[i] /= np.amax(output_np[i])
+            output_np -= np.amin(output_np)
+            output_np /= np.amax(output_np)
 
             output_np = np.expand_dims(output_np, -1)
             return output_np

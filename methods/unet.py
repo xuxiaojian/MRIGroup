@@ -2,32 +2,6 @@ from tensorflow.python.keras.layers import Conv3D, ReLU, Dropout, Conv3DTranspos
     Concatenate, Add, TimeDistributed, Lambda
 from tensorflow.python.keras.models import Model
 import numpy as np
-import tensorflow as tf
-
-
-def unet_3d_lstm(config, key):
-    input_shape = np.fromstring(config[key]['input_shape'], dtype=np.int, sep=',').tolist()
-    kernel_size = int(config[key]['kernel_size'])
-    filters_root = int(config[key]['filters_root'])
-    conv_times = int(config[key]['conv_times'])
-    up_down_times = int(config[key]['up_down_times'])
-
-    def conv3d_lstm_layer(input_, filters_, kernel_size_):
-        tf.contrib.rnn.ConvLSTMCell(
-            conv_ndims=3
-        )
-
-    def conv3d_relu_dropout_parallel_with_lstm(input_, filters_, kernel_size_):
-        output_ = TimeDistributed(Conv3D(filters=filters_, kernel_size=kernel_size_, padding='same'))(input_)
-        output_ = TimeDistributed(ReLU())(output_)
-        output_ = TimeDistributed(Dropout(rate=0.1))(output_)
-        return output_
-    
-    net_input = Input(shape=input_shape)
-    net = conv3d_relu_dropout_parallel_with_lstm(net_input, filters_root, kernel_size)
-
-    model = Model(inputs=net_input, outputs=net)
-    return model
 
 
 def unet_3d(config, key):

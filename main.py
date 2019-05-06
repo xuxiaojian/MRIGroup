@@ -1,11 +1,12 @@
 from datasets.mri_data_3d import MRIData3D
+from datasets.mri_data_4d import MRIData4D
 from datasets.jiaming_may3 import JMMay3
 from methods.utilities import copytree_code, set_logging, new_folder, dict_to_markdown_table, save_predict
-from methods.unet import unet_3d, unet_3d_lstm
+from methods.unet import unet_3d
+from methods.unet_lstm import unet_3d_lstm
 import os
 import logging
 import configparser
-import numpy as np
 import datetime
 from methods.customed_keras import ssim_tf, psnr_tf, KerasCallBack
 import tensorflow as tf
@@ -34,7 +35,7 @@ model_file = config['Test']['model_file']
 phase = config['Setting']['phase']
 
 os.environ["CUDA_VISIBLE_DEVICES"] = gpu_index
-os.environ["OMP_NUM_THREADS"] = "12"
+os.environ["OMP_NUM_THREADS"] = "4"
 
 if phase == 'train':
     copytree_code(src_path=code_folder, dst_path=experiment_folder + train_folder + '/')
@@ -53,6 +54,7 @@ logging.root.info("Config Info: \n" + config_info)
 #####################
 dataset_dict = {
     'MRIData3D': MRIData3D,
+    'MRIData4D': MRIData4D,
     'JMMay3': JMMay3,
 }
 
@@ -105,7 +107,30 @@ if phase == 'train':
     eval_predict = model.evaluate(dataset.test.tf_dataset.batch(train_batch_size), steps=dataset.test.get_dataset_len() // train_batch_size, verbose=1)
     new_folder(experiment_folder + train_folder + '/model/after-training/')
 
-    save_predict(imgs=imgs_predict,
+    save_predict(predict=imgs_predict,
                  evaluation=eval_predict,
                  target_name=config['Train']['name_predict_file'],
-                 target_path=experiment_folder + train_folder + '/model/after-training/', slim=True)
+                 target_path=experiment_folder + train_folder + '/model/after-training/', is_slim=True)
+
+if phase == 'test':
+    test_batch_size = int(config['Test']['batch_size'])
+
+    model = tf.keras.models.load_model(experiment_folder + test_folder + '/model/' + model_file,
+                                       custom_objects={'psnr_tf': psnr_tf, 'ssim_tf': ssim_tf})
+    model.summary()
+    imgs_predict = model.predict(dataset.test.tf_dataset.batch(test_batch_size),
+                                 steps=dataset.test.get_dataset_len() // test_batch_size, verbose=1)
+    eval_predict = model.evaluate(dataset.test.tf_dataset.batch(test_batch_size),
+                                  steps=dataset.test.get_dataset_len() // test_batch_size, verbose=1)
+
+    with tf.Session() as sess:
+        x, y = sess.run(dataset.test.tf_dataset.batch(dataset.test.get_dataset_len()).make_one_shot_iterator().get_next())
+    print(x.shape)
+    print(y.shape)
+
+    save_predict(predict=imgs_predict,
+                 evaluation=eval_predict,
+                 target_name=config['Train']['name_predict_file'],
+                 target_path=experiment_folder + test_folder + '/model/' + test_save_folder + '/',
+                 is_slim=False, is_save_xy=True,
+                 x=x, y=y)
