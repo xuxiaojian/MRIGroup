@@ -18,8 +18,6 @@ def new_folder(target_path):
 
 
 def set_logging(target_path):
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
-
     log_file = logging.FileHandler(filename=target_path + 'log.txt')
     log_file.setFormatter(logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s"))
     logging.root.addHandler(log_file)

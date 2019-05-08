@@ -3,6 +3,8 @@ import numpy as np
 from tensorboardX import SummaryWriter
 from methods import utilities
 import scipy.io as sio
+import configparser
+from methods.utilities import dict_to_markdown_table
 
 
 def psnr_tf(y_true, y_pred):
@@ -14,7 +16,7 @@ def ssim_tf(y_true, y_pred):
 
 
 class KerasCallBack(tf.keras.callbacks.Callback):
-    def __init__(self, output_path, train_dataset: tf.data.Dataset, valid_dataset: tf.data.Dataset, config_info=None):
+    def __init__(self, config: configparser.ConfigParser, output_path, train_dataset: tf.data.Dataset, valid_dataset: tf.data.Dataset):
         super().__init__()
         self.writer = SummaryWriter(output_path)
         self.global_batch = 0
@@ -22,8 +24,10 @@ class KerasCallBack(tf.keras.callbacks.Callback):
         self.validation_path = output_path + 'validation/'
         utilities.new_folder(self.validation_path)
 
-        if config_info is not None:
-            self.writer.add_text(tag='config', text_string=config_info, global_step=0)
+        config_info = ' '
+        for section in config.sections():
+            config_info = config_info + dict_to_markdown_table(config._sections[section], section)
+        self.writer.add_text(tag='config', text_string=config_info, global_step=0)
 
         with tf.Session() as sess:
             self.train_x, self.train_y = sess.run(train_dataset.make_one_shot_iterator().get_next())

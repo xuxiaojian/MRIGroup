@@ -1,6 +1,5 @@
 from .base import DatasetBase
 import configparser
-import tensorflow as tf
 import h5py
 import logging
 import glob
@@ -53,13 +52,13 @@ class MRIData3DBase(DatasetBase):
         output_shape = (self.phase, self.height, self.width, self.channel)
         super().__init__(is_shuffle=is_shuffle, indexes_length=2, x_shape=output_shape, y_shape=output_shape)
 
-    def get_dataset_len(self):
+    def dataset_len(self):
         output_len = 0
         for i in self.x_file:
             output_len += i['recon_MCNUFFT'].shape[0]
         return output_len
 
-    def get_sample_len(self):
+    def sample_len(self):
         return len(self.sample_index)
 
     def dataset_generator(self):
@@ -79,11 +78,9 @@ class MRIData3DBase(DatasetBase):
         def transform(input_np):
             output_np = np.swapaxes(input_np, 1, 2)
 
-            # for i in range(self.phase):
-            #     output_np[i] -= np.amin(output_np[i])
-            #     output_np[i] /= np.amax(output_np[i])
-            output_np -= np.amin(output_np)
-            output_np /= np.amax(output_np)
+            for i in range(self.phase):
+                output_np[i] -= np.amin(output_np[i])
+                output_np[i] /= np.amax(output_np[i])
 
             output_np = np.expand_dims(output_np, -1)
             return output_np

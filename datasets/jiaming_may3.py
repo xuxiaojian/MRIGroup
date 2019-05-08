@@ -1,6 +1,5 @@
 from .base import DatasetBase
 import configparser
-import tensorflow as tf
 import h5py
 import numpy as np
 
@@ -35,14 +34,14 @@ class JMMay3Base(DatasetBase):
         output_shape = (self.phase, self.height, self.width, self.channel)
         super().__init__(is_shuffle=is_shuffle, indexes_length=[1], x_shape=output_shape, y_shape=output_shape)
 
-    def get_dataset_len(self):
+    def dataset_len(self):
         return self.x_h5File.shape[0]
 
-    def get_sample_len(self):
+    def sample_len(self):
         return len(self.sample_index)
 
     def dataset_generator(self):
-        dataset_batches = self.get_dataset_len()
+        dataset_batches = self.dataset_len()
         for batch_index in range(dataset_batches):
             yield (batch_index, )
 

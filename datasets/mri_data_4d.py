@@ -1,6 +1,5 @@
 from .base import DatasetBase
 import configparser
-import tensorflow as tf
 import h5py
 import logging
 import glob
@@ -71,13 +70,13 @@ class MRIData4DBase(DatasetBase):
         super().__init__(is_shuffle=is_shuffle, indexes_length=1 + self.time_step,
                          x_shape=output_shape, y_shape=output_shape)
 
-    def get_dataset_len(self):
+    def dataset_len(self):
         output_len = 0
         for i in self.x_file:
             output_len += i['recon_MCNUFFT'].shape[0]
         return output_len
 
-    def get_sample_len(self):
+    def sample_len(self):
         return len(self.sample_index)
 
     def dataset_generator(self):
@@ -87,8 +86,7 @@ class MRIData4DBase(DatasetBase):
             for batch_index in range(file_batches):
                 temporal_index = np.array([i for i in range(self.time_step)]) + batch_index - int(
                     self.time_step / 2)
-                if batch_index >= (file_batches - int(
-                        self.time_step / 2)):  # due to slice rule of h5py that the indexes must be increasing
+                if batch_index >= (file_batches - int(self.time_step / 2)):  # due to slice rule of h5py that the indexes must be increasing
                     temporal_index -= file_batches
                 temporal_index = temporal_index.tolist()
 
@@ -98,8 +96,7 @@ class MRIData4DBase(DatasetBase):
         for i in self.sample_index:
             batches = self.x_file[0]['recon_MCNUFFT'].shape[0]
             temporal_index = np.array([i for i in range(self.time_step)]) + i - int(self.time_step / 2)
-            if i >= (batches - int(
-                    self.time_step / 2)):  # due to slice rule of h5py that the indexes must be increasing
+            if i >= (batches - int(self.time_step / 2)):  # due to slice rule of h5py that the indexes must be increasing
                 temporal_index -= batches
             temporal_index = temporal_index.tolist()
 
