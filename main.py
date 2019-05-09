@@ -2,7 +2,7 @@ from datasets.mri_data_3d import MRIData3D
 from datasets.mri_data_4d import MRIData4D
 from datasets.jiaming_may3 import JMMay3
 
-from methods.unet import unet_3d
+from methods.unet import UNet3D
 from methods.unet_lstm import UNet3DLSTM
 
 import os
@@ -17,16 +17,6 @@ os.environ["CUDA_VISIBLE_DEVICES"] = config['Setting']['gpu_index']
 os.environ["OMP_NUM_THREADS"] = "4"
 
 #####################
-# Load Model
-#####################
-model_dict = {
-    'UNet3D': unet_3d,
-    'UNet3DLSTM': UNet3DLSTM
-}
-
-model = model_dict[config['Setting']['model']](config)
-
-#####################
 # Load Dataset
 #####################
 dataset_dict = {
@@ -38,6 +28,16 @@ dataset_dict = {
 dataset = dataset_dict[config['Dataset']['dataset']](config)
 
 #####################
+# Load Model
+#####################
+model_dict = {
+    'UNet3D': UNet3D,
+    'UNet3DLSTM': UNet3DLSTM
+}
+
+model = model_dict[config['Setting']['model']](config)
+
+#####################
 # Main Processing
 #####################
 phase = config['Setting']['phase']
@@ -46,4 +46,4 @@ if phase == 'train':
     model.train(dataset.train, dataset.valid)
 
 if phase == 'test':
-    pass
+    model.test(dataset.test)

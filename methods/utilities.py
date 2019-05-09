@@ -24,38 +24,6 @@ def set_logging(target_path):
     return True
 
 
-def save_predict(predict, evaluation, target_name, target_path, is_slim=False, is_save_xy=False, x=None, y=None):
-    import PIL
-    import scipy.io as sio
-
-    batches, depths, width, height, channel = predict.shape
-    if is_slim:
-        depths = 1
-
-    imgs_list = []
-    for depth in range(depths):
-        for batch in range(batches):
-            img_current = np.squeeze(predict[batch, depth, :, :, :])
-            img_current -= np.amin(img_current)
-            img_current /= np.amax(img_current)
-
-            # noinspection PyUnresolvedReferences
-            imgs_list.append(PIL.Image.fromarray(img_current))
-
-    imgs_list[0].save(target_path + target_name + '.tiff', save_all=True, append_images=imgs_list[1:])
-
-    f = open(target_path + target_name + '.txt', 'w')
-    f.writelines(str(evaluation))
-    f.close()
-
-    if x is not None and y is not None and is_save_xy is True:
-        data_dict = {'predict': predict, 'x': x, 'y': y}
-    else:
-        data_dict = {'predict': predict}
-
-    sio.savemat(target_path + target_name + '.mat', data_dict)
-
-
 # Convert a python dict to markdown table
 def dict_to_markdown_table(config_dict, name_section):
     info = '## ' + name_section + '\n'
