@@ -14,13 +14,14 @@ class MRIData3D:
         valid_index = np.fromstring(config['Dataset']['valid_index'], dtype=np.int, sep=',').tolist()
         test_index = np.fromstring(config['Dataset']['test_index'], dtype=np.int, sep=',').tolist()
         sample_index = np.fromstring(config['Dataset']['sample_index'], dtype=np.int, sep=',').tolist()
+        is_liver_crop = bool(int(config['Dataset']['is_liver_crop']))
 
         logging.root.info('Train Data:')
-        self.train = MRIData3DBase(file_index=train_index, scan_lines=scan_lines, sample_index=sample_index, is_shuffle=True)
+        self.train = MRIData3DBase(file_index=train_index, scan_lines=scan_lines, sample_index=sample_index, is_shuffle=True, is_liver_crop=is_liver_crop)
         logging.root.info('Valid Data:')
-        self.valid = MRIData3DBase(file_index=valid_index, scan_lines=scan_lines, sample_index=sample_index, is_shuffle=False)
+        self.valid = MRIData3DBase(file_index=valid_index, scan_lines=scan_lines, sample_index=sample_index, is_shuffle=False, is_liver_crop=is_liver_crop)
         logging.root.info('test Data:')
-        self.test = MRIData3DBase(file_index=test_index, scan_lines=scan_lines, sample_index=sample_index, is_shuffle=False)
+        self.test = MRIData3DBase(file_index=test_index, scan_lines=scan_lines, sample_index=sample_index, is_shuffle=False, is_liver_crop=is_liver_crop)
 
 
 class MRIData3DBase(DatasetBase):
@@ -28,14 +29,29 @@ class MRIData3DBase(DatasetBase):
                  scan_lines: str = '400',
                  sample_index: list = (16, 21, 27, 30),
                  is_shuffle: bool = True,
-                 root_path='/export/project/gan.weijie/dataset/mri_source/'
+                 root_path='/export/project/gan.weijie/dataset/mri_source/',
+                 is_liver_crop: bool = False,
                  ):
 
         logging.root.info("[MRIData Object]")
 
         # Read Source H5 File Pointer
         self.x_file = []; self.y_file = []
+        self.file_index = file_index
         self.sample_index = sample_index
+        self.is_liver_crop = is_liver_crop
+        self.liver_crop_mask = [
+            [116, 244, 70, 198],
+            [96, 224, 51, 179],
+            [169, 297, 111, 239],
+            [121, 249, 101, 229],
+            [111, 239, 93, 221],
+            [106, 234, 103, 231],
+            [96, 224, 98, 226],
+            [51, 179, 103, 231],
+            [76, 204, 86, 214],
+            [170, 298, 95, 223],
+        ]
 
         x_file_path = glob.glob(root_path + '*/MCNUFFT_' + scan_lines + '*.h5'); x_file_path.sort()
         y_file_path = glob.glob(root_path + '*/CS_2000' + '*.h5'); y_file_path.sort()
@@ -48,6 +64,8 @@ class MRIData3DBase(DatasetBase):
         _, self.phase, self.height, self.width = self.x_file[0]['recon_MCNUFFT'].shape
         self.channel = 1
 
+        if is_liver_crop:
+            self.height = 128; self.width=128
         # Construct dataset
         output_shape = (self.phase, self.height, self.width, self.channel)
         super().__init__(is_shuffle=is_shuffle, indexes_length=2, x_shape=output_shape, y_shape=output_shape)
@@ -77,6 +95,11 @@ class MRIData3DBase(DatasetBase):
 
         def transform(input_np):
             output_np = np.swapaxes(input_np, 1, 2)
+            if self.is_liver_crop:
+                output_np = output_np[
+                            :, self.liver_crop_mask[self.file_index[file_index]][0]:self.liver_crop_mask[self.file_index[file_index]][1],
+                            self.liver_crop_mask[self.file_index[file_index]][2]:self.liver_crop_mask[self.file_index[file_index]][3]
+                            ]
 
             for i in range(self.phase):
                 output_np[i] -= np.amin(output_np[i])

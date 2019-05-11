@@ -1,8 +1,6 @@
-from tensorflow.python.keras.layers import Conv3D, ReLU, Dropout, Conv3DTranspose, Input, MaxPool3D, Concatenate, TimeDistributed
+from tensorflow.python.keras.layers import Conv3D, ReLU, Dropout, Conv3DTranspose, Input, MaxPool3D, Concatenate
 from methods.base import TFNetBase
 from datasets.base import DatasetBase
-from skimage.measure import compare_ssim, compare_psnr
-import PIL
 import numpy as np
 import tensorflow as tf
 

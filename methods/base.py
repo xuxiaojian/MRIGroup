@@ -31,9 +31,16 @@ class TensorboardXCallback(object):
             config_info = config_info + utilities.dict_to_markdown_table(config._sections[section], section)
         self.writer.add_text(tag='config', text_string=config_info, global_step=0)
 
-        with tf.Session() as sess:
-            self.train_x, self.train_y = sess.run(train_dataset.tf_sample.make_one_shot_iterator().get_next())
-            self.valid_x, self.valid_y = sess.run(valid_dataset.tf_sample.make_one_shot_iterator().get_next())
+        if tf.executing_eagerly():
+            self.train_x, self.train_y = train_dataset.tf_sample.make_one_shot_iterator().get_next()
+            self.valid_x, self.valid_y = valid_dataset.tf_sample.make_one_shot_iterator().get_next()
+
+            self.train_x = self.train_x.numpy(); self.train_y = self.train_y.numpy()
+            self.valid_x = self.valid_x.numpy(); self.valid_y = self.valid_y.numpy()
+        else:
+            with tf.Session() as sess:
+                self.train_x, self.train_y = sess.run(train_dataset.tf_sample.make_one_shot_iterator().get_next())
+                self.valid_x, self.valid_y = sess.run(valid_dataset.tf_sample.make_one_shot_iterator().get_next())
 
     def on_train_begin(self):
         sio.savemat(self.validation_path + 'init.mat', {'x': self.valid_x, 'y': self.valid_y})
@@ -165,7 +172,10 @@ class TFNetBase(object):
 
         train_op = self.get_train_op(learning_rate=learning_rate)
         save_compared_metrics = np.zeros(shape=(len(self.metrics_name), ))
-        with tf.Session() as sess:
+
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        with tf.Session(config=config) as sess:
             sess.run(tf.global_variables_initializer())
 
             callback.on_train_begin()
@@ -270,6 +280,7 @@ class TFNetBase(object):
         data_csv[:, 1] = psnr
         data_csv[:, 2] = ssim
 
+        logging.root.info('Metrics: ' + str(data_csv.mean(0)))
         np.savetxt(write_path + '.csv', data_csv, fmt='%.4f', delimiter=',', header='index, psnr, ssim')
 
         save_tiff(predict, write_path + '_predict.tiff')

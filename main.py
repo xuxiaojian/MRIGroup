@@ -4,10 +4,12 @@ from datasets.jiaming_may3 import JMMay3
 
 from methods.unet import UNet3D
 from methods.unet_lstm import UNet3DLSTM
+from methods.unet_gan import UNet3dGAN
 
 import os
 import configparser
 import logging
+import tensorflow as tf
 
 config = configparser.ConfigParser()
 config.read('config.ini')
@@ -15,6 +17,9 @@ config.read('config.ini')
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 os.environ["CUDA_VISIBLE_DEVICES"] = config['Setting']['gpu_index']
 os.environ["OMP_NUM_THREADS"] = "4"
+
+if bool(int(config['Setting']['is_eager'])):
+    tf.enable_eager_execution()
 
 #####################
 # Load Dataset
@@ -32,7 +37,8 @@ dataset = dataset_dict[config['Dataset']['dataset']](config)
 #####################
 model_dict = {
     'UNet3D': UNet3D,
-    'UNet3DLSTM': UNet3DLSTM
+    'UNet3DLSTM': UNet3DLSTM,
+    'UNet3dGAN': UNet3dGAN
 }
 
 model = model_dict[config['Setting']['model']](config)
