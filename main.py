@@ -1,10 +1,12 @@
 from datasets.mri_data_3d import MRIData3D
 from datasets.mri_data_4d import MRIData4D
 from datasets.jiaming_may3 import JMMay3
+from datasets.mri_data_3d_slim import MRIData3DSlim
 
 from methods.unet import UNet3D
 from methods.unet_lstm import UNet3DLSTM
 from methods.unet_gan import UNet3dGAN
+from methods.unet_phase_slim import UNet3DPhaseSlim
 
 import os
 import configparser
@@ -25,9 +27,10 @@ if bool(int(config['Setting']['is_eager'])):
 # Load Dataset
 #####################
 dataset_dict = {
-    'MRIData3D': MRIData3D,
-    'MRIData4D': MRIData4D,
-    'JMMay3': JMMay3,
+    'mri_data_3d': MRIData3D,
+    'mri_data_4d': MRIData4D,
+    'jiaming_may3': JMMay3,
+    'mri_data_3d_slim': MRIData3DSlim,
 }
 
 dataset = dataset_dict[config['Dataset']['dataset']](config)
@@ -36,9 +39,10 @@ dataset = dataset_dict[config['Dataset']['dataset']](config)
 # Load Model
 #####################
 model_dict = {
-    'UNet3D': UNet3D,
-    'UNet3DLSTM': UNet3DLSTM,
-    'UNet3dGAN': UNet3dGAN
+    'unet': UNet3D,
+    'unet_lstm': UNet3DLSTM,
+    'unet_gan': UNet3dGAN,
+    'unet_phase_slim': UNet3DPhaseSlim,
 }
 
 model = model_dict[config['Setting']['model']](config)
