@@ -10,6 +10,7 @@ import scipy.io as sio
 import datetime
 from skimage.measure import compare_ssim, compare_psnr
 import PIL
+import locale
 
 
 class TensorboardXCallback(object):
@@ -133,6 +134,10 @@ class TFNetBase(object):
         self.loss = self.get_loss()
         self.metrics, self.metrics_name = self.get_metrics()
 
+        self.parameters_num = np.sum([np.prod(v.shape) for v in tf.trainable_variables()])
+        locale.setlocale(locale.LC_ALL, 'en_US')
+        logging.info('Model Parameters Number: ' + locale.format("%d", self.parameters_num, grouping=True))
+
     # Basically, don't change the following codes.
     def test(self, test_dataset: DatasetBase):
         load_path = self.config['Setting']['experiment_folder'] + self.config['Setting']['test_folder'] + '/model/' + self.config['Test']['model_path'] + '/'
@@ -141,6 +146,7 @@ class TFNetBase(object):
         save_path = self.config['Setting']['experiment_folder'] + self.config['Setting']['test_folder'] + \
             '/test - ' + self.config['Test']['model_path'] + ' - ' + datetime.datetime.now().strftime("%Y-%m-%d-%H:%M") + '/'
         self.new_test_folders(save_path)
+        logging.info('Model Parameters Number: ' + locale.format("%d", self.parameters_num, grouping=True))
 
         with tf.Session() as sess:
             self.load(sess, load_path)

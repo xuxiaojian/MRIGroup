@@ -9,6 +9,7 @@ import numpy as np
 class MRIData3D:
     def __init__(self, config: configparser.ConfigParser):
         scan_lines = config['Dataset']['scan_lines']
+        mri_path = config['Dataset']['mri_path']
 
         train_index = np.fromstring(config['Dataset']['train_index'], dtype=np.int, sep=',').tolist()
         valid_index = np.fromstring(config['Dataset']['valid_index'], dtype=np.int, sep=',').tolist()
@@ -17,11 +18,28 @@ class MRIData3D:
         is_liver_crop = bool(int(config['Dataset']['is_liver_crop']))
 
         logging.root.info('Train Data:')
-        self.train = MRIData3DBase(file_index=train_index, scan_lines=scan_lines, sample_index=sample_index, is_shuffle=True, is_liver_crop=is_liver_crop)
+        self.train = MRIData3DBase(file_index=train_index,
+                                   scan_lines=scan_lines,
+                                   sample_index=sample_index,
+                                   is_shuffle=True,
+                                   is_liver_crop=is_liver_crop,
+                                   root_path=mri_path)
+
         logging.root.info('Valid Data:')
-        self.valid = MRIData3DBase(file_index=valid_index, scan_lines=scan_lines, sample_index=sample_index, is_shuffle=False, is_liver_crop=is_liver_crop)
+        self.valid = MRIData3DBase(file_index=valid_index,
+                                   scan_lines=scan_lines,
+                                   sample_index=sample_index,
+                                   is_shuffle=False,
+                                   is_liver_crop=is_liver_crop,
+                                   root_path=mri_path)
+
         logging.root.info('test Data:')
-        self.test = MRIData3DBase(file_index=test_index, scan_lines=scan_lines, sample_index=sample_index, is_shuffle=False, is_liver_crop=is_liver_crop)
+        self.test = MRIData3DBase(file_index=test_index,
+                                  scan_lines=scan_lines,
+                                  sample_index=sample_index,
+                                  is_shuffle=False,
+                                  is_liver_crop=is_liver_crop,
+                                  root_path=mri_path)
 
 
 class MRIData3DBase(DatasetBase):
@@ -29,7 +47,7 @@ class MRIData3DBase(DatasetBase):
                  scan_lines: str = '400',
                  sample_index: list = (16, 21, 27, 30),
                  is_shuffle: bool = True,
-                 root_path='/export/project/gan.weijie/dataset/mri_source/',
+                 root_path='/export/project/gan.weijie/dataset/mri_source_phase_match/',
                  is_liver_crop: bool = False,
                  ):
 

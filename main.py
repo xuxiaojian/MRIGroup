@@ -7,6 +7,7 @@ from methods.unet import UNet3D
 from methods.unet_lstm import UNet3DLSTM
 from methods.unet_gan import UNet3dGAN
 from methods.unet_phase_slim import UNet3DPhaseSlim
+from methods.unet_keras import UNetKeras
 
 import os
 import configparser
@@ -43,6 +44,7 @@ model_dict = {
     'unet_lstm': UNet3DLSTM,
     'unet_gan': UNet3dGAN,
     'unet_phase_slim': UNet3DPhaseSlim,
+    'unet_keras': UNetKeras,
 }
 
 model = model_dict[config['Setting']['model']](config)

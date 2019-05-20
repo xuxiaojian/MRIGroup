@@ -12,7 +12,7 @@ class DatasetBase(object):
         if is_shuffle:
             self.tf_dataset = self.tf_dataset.shuffle(buffer_size=self.dataset_len())
 
-        self.tf_dataset = self.tf_dataset.map(self.get_tf_map_fn).repeat(1)
+        self.tf_dataset = self.tf_dataset.map(self.get_tf_map_fn).repeat()
 
         self.tf_sample = tf.data.Dataset.from_generator(
             generator=self.sample_generator, output_shapes=indexes_length, output_types=tf.int32). \
